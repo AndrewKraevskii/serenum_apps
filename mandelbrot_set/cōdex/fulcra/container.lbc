@@ -1,0 +1,506 @@
+
+/* TODO: Store keys and take both a hash function and cmp function for keys. */
+peregrīna strūctūra Hashmap<K, V,>
+{
+    @SitulaMemoriae arena;
+    n64 key_size;
+    n64 value_size;
+
+    @proc(@n8, -> n64,) key_hash_proc;
+    @proc(@n8, @n8, -> n8,) key_equal_proc;
+
+    n64 value_count;
+
+    []n64 hashes;
+    @K keys_i;
+    @V values_i;
+}
+
+peregrīna prōcēdūra hashmap_create<K, V,>(
+    @SitulaMemoriae arena,
+    @proc(@n8, -> n64,) key_hash_proc,
+    @proc(@n8, @n8, -> n8,) key_equal_proc,
+    n64 key_size,
+) -> @Hashmap<K, V,>
+{
+    @Hashmap<K, V,> map = situlā_adlocā<Hashmap<K, V,>,>(arena, 1,).i;
+    map.arena% = arena;
+
+    map.key_size% = key_size; // BUG! quid_genus_mūtābile(K).magnitūdō%;
+    map.value_size% = quid_genus_mūtābile(V).magnitūdō%;
+    map.key_hash_proc% = key_hash_proc;
+    map.key_equal_proc% = key_equal_proc;
+
+    n64 m = 16;
+
+    map.hashes% = situlā_adlocā<n64,>(arena, m,);
+    map.keys_i% = (@K)situlā_adlocā<n8,>(arena, map.key_size%*m,).i;
+    map.values_i% = (@V)situlā_adlocā<n8,>(arena, map.value_size%*m,).i;
+
+    dum n64 i = 0; i < m
+    {
+        map.hashes%[i]% = 0;
+        i += 1;
+    }
+    map.value_count% = 0;
+    #refer map;
+}
+
+peregrīna prōcēdūra hashmap_clone<K, V,>(
+    @SitulaMemoriae arena,
+    @Hashmap<K, V,> orig,
+) -> @Hashmap<K, V,>
+{
+    @Hashmap<K, V,> map = situlā_adlocā<Hashmap<K, V,>,>(arena, 1,).i;
+    map.arena% = arena;
+
+    map.key_size% = orig.key_size%;
+    map.value_size% = orig.value_size%;
+    map.key_hash_proc% = orig.key_hash_proc%;
+    map.key_equal_proc% = orig.key_equal_proc%;
+
+    n64 m = orig.hashes.m%;
+
+    map.hashes% = situlā_adlocā<n64,>(arena, m,);
+    map.keys_i% = (@K)situlā_adlocā<n8,>(arena, map.key_size%*m,).i;
+    map.values_i% = (@V)situlā_adlocā<n8,>(arena, map.value_size%*m,).i;
+
+    dum n64 i = 0; i < m
+    {
+        map.hashes%[i]% = orig.hashes%[i]%;
+        i += 1;
+    }
+    {
+        @n8 f = (@n8)orig.keys_i%;
+        @n8 t = (@n8)map.keys_i%;
+        dum n64 kt = m*map.key_size%; kt
+        {
+            t% = f%;
+            t += 1; f += 1;
+            kt -= 1;
+        }
+    }
+    {
+        @n8 f = (@n8)orig.values_i%;
+        @n8 t = (@n8)map.values_i%;
+        dum n64 vt = m*map.value_size%; vt
+        {
+            t% = f%;
+            t += 1; f += 1;
+            vt -= 1;
+        }
+    }
+    map.value_count% = orig.value_count%;
+    #refer map;
+}
+
+peregrīna prōcēdūra hashmap_clear<K, V,>(@Hashmap<K, V,> map,)
+{
+    []n64 hashes = map.hashes%;
+    dum hashes.m
+    {
+        hashes[0]% = 0;
+        hashes = hashes[1..];
+    }
+    map.value_count% = 0;
+}
+
+peregrīna prōcēdūra hashmap_cheese_values<K, V,>(@Hashmap<K, V,> map,) -> ([]n64, []n32,) // BUG! can't be generic for some reason
+{
+    []V vals;
+    vals.m = map.hashes.m%;
+    vals.i = map.values_i%;
+    #refer (map.hashes%, ([]n32)vals,);
+}
+
+/* returns true if the insert replaced a previous entry */
+peregrīna prōcēdūra hashmap_insert<K, V,>(@Hashmap<K, V,> map, @K key, @V value,) -> n8
+{
+    sī map.value_count% + 1 > map.hashes.m% / 2
+    {
+        []n64 hashes = map.hashes%;
+        @K keys_i = map.keys_i%;
+        @V values_i = map.values_i%;
+
+        {
+            n64 m = map.hashes.m%*2;
+
+            map.hashes% = situlā_adlocā<n64,>(map.arena%, m,);
+            map.keys_i% = (@K)situlā_adlocā<n8,>(map.arena%, map.key_size%*m,).i;
+            map.values_i% = (@V)situlā_adlocā<n8,>(map.arena%, map.value_size%*m,).i;
+
+            []n64 hashes = map.hashes%;
+            dum n64 i = 0; i < m
+            {
+                hashes[i]% = 0;
+                i += 1;
+            }
+            map.value_count% = 0;
+        }
+
+        n64 ks = map.key_size%;
+        n64 vs = map.value_size%;
+        dum n64 i = 0; i < hashes.m
+        {
+            sī hashes[i]%
+            {
+                hashmap_insert(map, keys_i + (@K)(ks*i), values_i + (@V)(vs*i),);
+            }
+            i += 1;
+        }
+    }
+
+    @proc(@n8, -> n64,) hash_proc = map.key_hash_proc%;
+    n64 key_hash = (hash_proc)((@n8)key,);
+    sī key_hash == 0
+    { key_hash += 1; }
+
+    []n64 hashes = map.hashes%;
+    @n8 keys_i = (@n8)map.keys_i%;
+    n64 ks = map.key_size%;
+    @proc(@n8, @n8, -> n8,) key_equal_proc = map.key_equal_proc%;
+
+    n64 mhash = key_hash;
+    dum 1
+    {
+        n64 slot_value = hashes[mhash ? hashes.m]%;
+
+        sī slot_value == 0 ||
+            (slot_value == key_hash &&
+            (key_equal_proc)(keys_i + (@n8)(ks*(mhash ? hashes.m)), (@n8)key,))
+        { #dēsine; }
+
+        /* table size and (table size + 1) are relatively prime. */
+        mhash += 1 + mhash ? (hashes.m + 1);
+    }
+    n64 put_index = mhash ? hashes.m;
+
+    n8 replaced = 1;
+    sī hashes[put_index]% == 0
+    {
+        map.value_count% += 1;
+        replaced = 0;
+
+        hashes[put_index]% = key_hash;
+        c_mem_copy((@n8)key, (@n8)(keys_i + (@n8)(ks*put_index)), ks,);
+    }
+
+    c_mem_copy(
+        (@n8)value,
+        (@n8)((@n8)map.values_i% + (@n8)(map.value_size% * put_index)),
+        map.value_size%,
+    );
+    #refer replaced;
+}
+
+peregrīna prōcēdūra hashmap_get<K, V,>(@Hashmap<K, V,> map, @K key,) -> @V
+{
+    @proc(@n8, -> n64,) hash_proc = map.key_hash_proc%;
+    n64 key_hash = (hash_proc)((@n8)key,);
+    sī key_hash == 0
+    { key_hash += 1; }
+
+    []n64 hashes = map.hashes%;
+    @n8 keys_i = (@n8)map.keys_i%;
+    n64 ks = map.key_size%;
+    @proc(@n8, @n8, -> n8,) key_equal_proc = map.key_equal_proc%;
+
+    n64 mhash = key_hash;
+    dum 1
+    {
+        n64 slot_value = hashes[mhash ? hashes.m]%;
+
+        sī slot_value == 0
+        { #refer 0; }
+
+        sī slot_value == 0 ||
+            (slot_value == key_hash &&
+            (key_equal_proc)(keys_i + (@n8)(ks*(mhash ? hashes.m)), (@n8)key,))
+        { #dēsine; }
+
+        /* table size and (table size + 1) are relatively prime. */
+        mhash += 1 + mhash ? (hashes.m + 1);
+    }
+    n64 take_index = mhash ? hashes.m;
+
+    #refer map.values_i% + (@V)(map.value_size%*take_index);
+}
+
+peregrīna prōcēdūra hashmap_export<K, V,>(
+    @Hashmap<K, V,> map,
+    @SitulaMemoriae dest,
+) -> ([]n8, []n8,) // BUG -> ([]K, []V,)
+{
+    n64 ks = map.key_size%;
+    n64 vs = map.value_size%;
+    
+    n64 count = map.value_count%;
+    []K key_arr;
+    key_arr.m = count;
+    key_arr.i = (@K)situlā_adlocā<n8,>(dest, ks*count,).i;
+    []V val_arr;
+    val_arr.m = count;
+    val_arr.i = (@V)situlā_adlocā<n8,>(dest, vs*count,).i;
+    
+    @K kp = key_arr.i;
+    @V vp = val_arr.i;
+    
+    @n8 keys_i = (@n8) map.keys_i%;
+    @n8 values_i = (@n8) map.values_i%;
+    
+    []n64 hashes = map.hashes%;
+    dum n64 i = 0; i < hashes.m
+    {
+        #prōlātā { i += 1; }
+        
+        sī hashes[i]%
+        {
+            c_mem_copy(keys_i + (@n8)(ks * i), (@n8)kp, ks,);
+            kp += (@K)ks;
+            
+            c_mem_copy(values_i + (@n8)(vs * i), (@n8)vp, vs,);
+            vp += (@V)vs;
+        }
+    }
+    
+    #refer (key_arr, val_arr,);
+}
+
+peregrīna strūctūra Auctum<T,>
+{
+    @SitulaMemoriae arena;
+    n64 value_size;
+    @n8 i;
+    n64 m;
+    n64 capacity;
+}
+
+peregrīna prōcēdūra create_auctum<T,>(@SitulaMemoriae arena,) -> @Auctum<T,>
+{
+    @Auctum<T,> dyn_arr = situlā_adlocā<Auctum<T,>,>(arena, 1,).i;
+    dyn_arr.arena% = arena;
+    dyn_arr.m% = 0;
+    dyn_arr.capacity% = 16;
+
+    dyn_arr.value_size% = quid_genus_mūtābile(T).magnitūdō%;
+    dyn_arr.i% = situlā_adlocā_gradū<n8,>(arena, dyn_arr.value_size%*16, dyn_arr.value_size%,).i;
+    #refer dyn_arr;
+}
+
+peregrīna prōcēdūra auctum_access<T,>(@Auctum<T,> a,) -> []T
+{
+    []T ret;
+    ret.i = (@T) a.i%;
+    ret.m = a.m%;
+    #refer ret;
+}
+
+peregrīna prōcēdūra auctum_truncate<T,>(@Auctum<T,> a, n64 new_size,)
+{
+    adfirmā(new_size <= a.m%,);
+    a.m% = new_size;
+}
+
+peregrīna prōcēdūra auctum_push_single<T,>(@Auctum<T,> a,) -> @T
+{
+    #refer auctum_push(a, 1,).i;
+}
+
+/*amd
+prōcēdūra c_mem_copy(@n8 from, @n8 to, n64 count,)
+{
+    dum count >= 8
+    {
+        ((@n64)to)% = ((@n64)from)%;
+        from += 8;
+        to += 8;
+        count -= 8;
+    }
+    dum count
+    {
+        to% = from%;
+        from += 1;
+        to += 1;
+        count -= 1;
+    }
+}
+*/
+
+/*rv
+prōcēdūra compīlāta c_mem_copy(@n8 from, @n8 to, n64 count,)
+"
+    li a3, 8
+loop8:
+    bltu a2, a3, loop1
+    ld a4, (a0)
+    sd a4, (a1)
+    addi a0, a0, 8
+    addi a1, a1, 8
+    addi a2, a2, -8
+    j loop8
+loop1:
+    beqz a2, end
+    lbu a4, (a0)
+    sb a4, (a1)
+    addi a0, a0, 1
+    addi a1, a1, 1
+    addi a2, a2, -1
+    j loop1
+end:
+    ret
+"
+*/
+
+peregrīna prōcēdūra auctum_push<T,>(@Auctum<T,> a, n64 count,) -> []T
+{
+    n64 start_index = a.m%;
+    n64 value_size = a.value_size%;
+    
+    // There will only ever be one copy, if we loop it just extends.
+    dum start_index + count > a.capacity%
+    {
+        @SitulaMemoriae sit = a.arena%;
+        n64 buf_size = value_size * a.capacity%;
+        
+        // try extend
+        []n8 try_extend = situlā_adlocā_gradū<n8,>(sit, buf_size, value_size,);
+        
+        @n8 old_buf_base = a.i%;
+        sī try_extend.i != old_buf_base + buf_size
+        {
+            // fail! allocate again to get our full new buffer
+            []n8 try_extend2 = situlā_adlocā_gradū<n8,>(sit, buf_size, value_size,);
+            adfirmā(try_extend2.i == try_extend[try_extend.m..].i,);
+            c_mem_copy(old_buf_base, try_extend.i, buf_size,);
+            a.i% = try_extend.i;
+        }
+        a.capacity% = a.capacity% << 1;
+    }
+
+    []T ret;
+    ret.i += (@T)(a.i% + (@n8)(value_size * start_index));
+    ret.m = count;
+    a.m% = start_index + count;
+    #refer ret;
+}
+
+peregrīna strūctūra Horreum<T,>
+{
+    @SitulaMemoriae situla;
+    n64 vs;
+    @Auctum<@CellaHorreī,> cellae;
+}
+
+peregrīna strūctūra CellaHorreī
+{
+    n32 free_list;
+    [512]n32 free_table;
+}
+
+prōcēdūra horreum_new_cella(@SitulaMemoriae situla, n64 vs,) -> @CellaHorreī
+{
+    @CellaHorreī cella = (@CellaHorreī)situlā_adlocā<n8,>(
+        situla,
+        quot_octētī(CellaHorreī)-1 + vs*512,
+    ).i;
+    cella.free_table[511]% = 0xFFFFffff;
+    dum n32 i = 511; i
+    {
+        i -= 1;
+        cella.free_table[i]% = i + 1;
+    }
+    cella.free_list% = 0; // points to first table entry
+    #refer cella;
+}
+
+peregrīna prōcēdūra horreum_creā<T,>(@SitulaMemoriae situla,) -> @Horreum<T,>
+{
+    @Horreum<T,> horreum = situlā_adlocā<Horreum<T,>,>(situla, 1,).i;
+    horreum_creā_in_sitū(situla, horreum,);
+    #refer horreum;
+}
+peregrīna prōcēdūra horreum_creā_in_sitū<T,>(
+    @SitulaMemoriae situla,
+    @Horreum<T,> horreum,
+)
+{
+    horreum.situla% = situla;
+    horreum.vs% = quid_genus_mūtābile(T).magnitūdō%;
+    horreum.cellae% = create_auctum<@CellaHorreī,>(situla,);
+}
+
+peregrīna prōcēdūra horreum_alloc_single<T,>(@Horreum<T,> horreum,) -> @T
+{
+    []@CellaHorreī cellae = auctum_access(horreum.cellae%,);
+    dum n64 i = 0; i < cellae.m
+    {
+        n32 li = cellae[i]%.free_list%;
+        sī li != 0xFFFFffff
+        {
+            cellae[i]%.free_list% = cellae[i]%.free_table[li]%;
+            cellae[i]%.free_table[li]% = 0xFFFFfffe; // mark as taken
+            #refer (@T)cellae[i]% + quot_octētī(CellaHorreī) + (@T)(li*horreum.vs%);
+        }
+        i += 1;
+    }
+    @@CellaHorreī cella = auctum_push_single(horreum.cellae%,);
+    cella% = horreum_new_cella(horreum.situla%, horreum.vs%,);
+    cella%.free_list% = 1;
+    cella%.free_table[0]% = 0xFFFFfffe; // mark as taken
+    #refer (@T)cella% + quot_octētī(CellaHorreī);
+}
+
+peregrīna prōcēdūra horreum_get<T,>(@Horreum<T,> horreum, n64 index,) -> @T
+{
+    @T ret = horreum_try_get(horreum, index,);
+    adfirmā(ret,);
+    #refer ret;
+}
+// Returns null instead of crashing.
+peregrīna prōcēdūra horreum_try_get<T,>(@Horreum<T,> horreum, n64 index,) -> @T
+{
+    []@CellaHorreī cellae = auctum_access(horreum.cellae%,);
+    sī index / 512 >= cellae.m
+    { #refer 0; }
+    sī cellae[index / 512]%.free_table[index ? 512]% != 0xFFFFfffe
+    { #refer 0; }
+    #refer (@T)cellae[index / 512]% + quot_octētī(CellaHorreī) + (@T)((index ? 512)*horreum.vs%);
+}
+
+// Returns null instead of crashing.
+peregrīna prōcēdūra horreum_next_from<T,>(@Horreum<T,> horreum, n64 index,) -> @T
+{
+    []@CellaHorreī cellae = auctum_access(horreum.cellae%,);
+    dum 1
+    {
+        sī index / 512 >= cellae.m
+        { #refer 0; }
+        sī cellae[index / 512]%.free_table[index ? 512]% == 0xFFFFfffe
+        { #refer (@T)cellae[index / 512]% + quot_octētī(CellaHorreī) + (@T)((index ? 512)*horreum.vs%); }
+        index += 1;
+    }
+}
+
+peregrīna prōcēdūra horreum_index_of<T,>(@Horreum<T,> horreum, @T ptr,) -> n64
+{
+    []@CellaHorreī cellae = auctum_access(horreum.cellae%,);
+    dum n64 i = 0; 1
+    {
+        adfirmā(i < cellae.m,);
+        n64 diff = (n64)ptr - (n64)((@T)cellae[i]% + quot_octētī(CellaHorreī));
+        sī diff < horreum.vs% * 512
+        {
+            #refer i * 512 + diff / horreum.vs%;
+        }
+        i += 1;
+    }
+}
+
+peregrīna prōcēdūra horreum_free<T,>(@Horreum<T,> horreum, n64 index,)
+{
+    @CellaHorreī cella = auctum_access(horreum.cellae%,)[index/512]%;
+    n32 sub_index = (n32)(index ? 512);
+    adfirmā(cella.free_table[sub_index]%,);
+    cella.free_table[sub_index]% = cella.free_list%;
+    cella.free_list% = sub_index;
+}

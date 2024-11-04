@@ -1,0 +1,373 @@
+
+peregrīna prōcēdūra regere([]n8 format_string, ...)
+{
+    n64 ai = 0;
+
+    []n8 remaining = format_string;
+    dum remaining.m
+    {
+        // print something case
+        sī  remaining[0]% == '{' &&
+            remaining.m > 1 &&
+            remaining[1]% != '{'
+        {
+            []n8 format = remaining[0..1];
+            dum format.m < remaining.m && format[format.m-1]% != '}'
+            { format.m += 1; }
+            remaining = remaining[format.m..];
+            
+            format.m -= format[format.m-1]% == '}';
+            format = format[1..];
+            
+            @n8 data_pointer = parametra_adjūncta[ai]%;
+            @Genus type = genera_parametrōrum_adjūnctōrum[ai]%;
+            ai += 1;
+            
+            regere_by_pointer(data_pointer, type, format,);
+        }
+        sī nōn
+        {
+            []n8 text = remaining[0..0];
+            dum text.m < remaining.m &&
+                remaining[text.m]% != '{'
+            { text.m += 1; }
+            
+            sī  text.m + 1 < remaining.m &&
+                remaining[text.m+0]% == '{' &&
+                remaining[text.m+1]% == '{'
+            {
+                text.m += 1;
+                remaining = remaining[text.m+1..];
+                circum.prōcēdūra_regere_notās_clārās%(text,);
+            }
+            sī nōn
+            {
+                remaining = remaining[text.m..];
+                circum.prōcēdūra_regere_notās_clārās%(text,);
+            }
+        }
+    }
+}
+
+prōcēdūra regere_by_pointer(@n8 data_pointer, @Genus type, []n8 format,)
+{
+    n64 bad_format = 0;
+    #dīverte type.identitās%
+    {
+        cēterum
+        {
+            circum.prōcēdūra_regere_notās_clārās%("{Genus nesciō: ",);
+            regere_numerum(type.identitās%,);
+            circum.prōcēdūra_regere_notās_clārās%(" / I do not know the type: ",);
+            regere_numerum(type.identitās%,);
+            circum.prōcēdūra_regere_notās_clārās%("}",);
+        }
+        sīve 0 // n64
+        {
+            sī format.m == 0
+            { regere_numerum(((@n64)data_pointer)%,); }
+            sīve format.m == 1 && format[0]% == 'x'
+            { regere_numerum_sēdecimālem(((@n64)data_pointer)%,); }
+            sī nōn
+            { bad_format = 1; }
+        }
+        sīve 1 // s64
+        {
+            sī format.m == 0
+            { regere_numerum_signātum(((@s64)data_pointer)%,); }
+            sīve format.m == 1 && format[0]% == 'x'
+            { regere_numerum_sēdecimālem(((@n64)data_pointer)%,); }
+            sī nōn
+            { bad_format = 1; }
+        }
+        sīve 12 // n32
+        {
+            sī format.m == 0
+            { regere_numerum(((@n32)data_pointer)%,); }
+            sīve format.m == 1 && format[0]% == 'x'
+            { regere_numerum_sēdecimālem(((@n32)data_pointer)%,); }
+            sī nōn
+            { bad_format = 1; }
+        }
+        sīve 4 // n8
+        {
+            sī format.m == 0
+            { regere_numerum_sēdecimālem(((@n8)data_pointer)%,); }
+            sīve format.m == 1 && format[0]% == 'd'
+            { regere_numerum(((@n8)data_pointer)%,); }
+            sīve format.m == 1 && format[0]% == 'n'
+            {
+                []n8 buf;
+                buf.i = (@n8)data_pointer;
+                buf.m = 1;
+                circum.prōcēdūra_regere_notās_clārās%(buf,);
+            }
+            sī nōn
+            { bad_format = 1; }
+        }
+        sīve 5 // index
+        {
+            sī format.m == 0 || (format.m == 1 && format[0]% == 'x')
+            { regere_numerum_sēdecimālem(((@n64)data_pointer)%,); }
+            sīve format.m == 1 && format[0]% == 's'
+            { regere_by_pointer(((@@n8)data_pointer)%, type.index_ad_elementum%, "",); }
+            sī nōn
+            { bad_format = 1; }
+        }
+        sīve 11 // index ad prōcēdūram
+        {
+            sī format.m == 0
+            { regere_numerum_sēdecimālem(((@n64)data_pointer)%,); }
+            sī nōn
+            { bad_format = 1; }
+        }
+        sīve 2 // array, ordo
+        {
+            @Genus sub_type = type.index_ad_elementum%;
+            n64 es = sub_type.magnitūdō%;
+            n64 print_num = type.numerus_elementōrum%;
+            sī print_num > 10 { print_num = 10; }
+            
+            circum.prōcēdūra_regere_notās_clārās%("[",);
+            dum n64 i = 0; i < print_num
+            {
+                regere_by_pointer(data_pointer + (@n8)(i*es), sub_type, format,);
+                sī i + 1 < print_num
+                { circum.prōcēdūra_regere_notās_clārās%(", ",); }
+                sī nōn
+                { circum.prōcēdūra_regere_notās_clārās%(",",); }
+                i += 1;
+            }
+            sī print_num != type.numerus_elementōrum%
+            { circum.prōcēdūra_regere_notās_clārās%(" ...]",); }
+            sī nōn
+            { circum.prōcēdūra_regere_notās_clārās%("]",); }
+        }
+        sīve 3 // spatium
+        {
+            n64 i = ((@n64)data_pointer)%;
+            n64 m = ((@n64)data_pointer+8)%;
+            sī format.m == 0
+            {
+                circum.prōcēdūra_regere_notās_clārās%("[.i = ",);
+                regere_numerum_sēdecimālem(i,);
+                circum.prōcēdūra_regere_notās_clārās%(" .m = ",);
+                regere_numerum(m,);
+                circum.prōcēdūra_regere_notās_clārās%("]",);
+            }
+            sīve format.m == 1 && format[0]% == 'c'
+            {
+                []n8 text;
+                text.i = (@n8)i;
+                text.m = m;
+                circum.prōcēdūra_regere_notās_clārās%(text,);
+            }
+            sīve format.m == 1 && format[0]% == 'u'
+            {
+                []n8 text;
+                text.i = (@n8)i;
+                text.m = m;
+                
+                #situla trānsitōria: temp_sit;
+                []n8 clear = situlā_adlocā<n8,>(temp_sit, text.m,);
+                n64 ci = 0;
+                dum text.m
+                {
+                    n64 consumed;
+                    (clear[ci]%, consumed,) = clāra_ā_utf8(text,);
+                    ci += 1;
+                    consumed += consumed == 0;
+                    text = text[consumed..];
+                }
+                clear.m = ci;
+                
+                circum.prōcēdūra_regere_notās_clārās%(clear,);
+            }
+            sī nōn
+            { bad_format = 1; }
+        }
+        sīve 9 // strūctūra
+        {
+            @GenusStrūctūrae type = (@GenusStrūctūrae)type;
+            circum.prōcēdūra_regere_notās_clārās%(type.nōmen_strūctūrae%,);
+            circum.prōcēdūra_regere_notās_clārās%("{...}",);
+        }
+    }
+    
+    sī bad_format
+    {
+        circum.prōcēdūra_regere_notās_clārās%("{
+            AUXILIUM FŌRMĀTIŌNĪ
+            HELP FOR FORMATTING
+        
+If the 'regere' procedure can display your type then it will always do so with a vacuum format specifier, i.e. '{}'. Format specifiers vary between types.
+
+n64, n32, s64:
+- 'x': Formats as hexadecimal.
+
+n8:
+- 'd': Formats as decimal.
+- 'n': Formats as clear note.
+
+spatium, e.g. []n8:
+- 'c': Marks clear text that gets passed along unmodified.
+- 'u': Like 'c' but converts from utf8 to clear text first.
+
+index, e.g. @n32:
+- 's': Follow the pointer and format the value it points to.
+}",);
+    }
+}
+
+prōcēdūra regere_numerum(n64 nat,)
+{
+    []n8 buf;
+    sī nat
+    {
+        buf = campō_adlocā<n8,>(20,);
+        n64 digits = 0;
+        dum nat
+        {
+            buf[buf.m - 1 - digits]% = (n8)(nat ? 10);
+            digits += 1;
+            nat /= 10;
+        }
+        buf = buf[buf.m - digits..];
+    }
+    sī nōn
+    { buf = "0"; }
+    circum.prōcēdūra_regere_notās_clārās%(buf,);
+}
+prōcēdūra regere_numerum_signātum(s64 s,)
+{
+    n64 sign = 0;
+    n64 nat;
+    sī s < 0
+    { nat = (n64)(-s); sign = 1; }
+    sī nōn
+    { nat = (n64)s; }
+    
+    []n8 buf;
+    sī nat
+    {
+        buf = campō_adlocā<n8,>(20,);
+        n64 digits = 0;
+        dum nat
+        {
+            buf[buf.m - 1 - digits]% = (n8)(nat ? 10);
+            digits += 1;
+            nat /= 10;
+        }
+        buf = buf[buf.m - digits - sign..];
+        sī sign
+        { buf[0]% = '-'; }
+    }
+    sī nōn
+    { buf = "0"; }
+    circum.prōcēdūra_regere_notās_clārās%(buf,);
+}
+prōcēdūra regere_numerum_sēdecimālem(n64 nat,)
+{
+    []n8 buf;
+    sī nat
+    {
+        buf = campō_adlocā<n8,>(18,);
+        n64 digits = 0;
+        dum nat
+        {
+            n8 nota = (n8)(nat ? 16);
+            sī nota == 0xA
+            { nota = 'A'; }
+            sīve nota == 0xB
+            { nota = 'B'; }
+            sīve nota == 0xC
+            { nota = 'C'; }
+            sīve nota == 0xD
+            { nota = 'D'; }
+            sīve nota == 0xE
+            { nota = 'E'; }
+            sīve nota == 0xF
+            { nota = 'F'; }
+            buf[buf.m - 1 - digits]% = nota;
+            digits += 1;
+            nat /= 16;
+        }
+        buf = buf[buf.m - digits - 2..];
+        buf[0]% = '0';
+        buf[1]% = 'x';
+    }
+    sī nōn
+    { buf = "0x0"; }
+    circum.prōcēdūra_regere_notās_clārās%(buf,);
+}
+
+peregrīna prōcēdūra regere_vestīgium_scālae()
+{ regere_vestīgium_scālae_aliud(vestīgium_scālae,); }
+
+peregrīna prōcēdūra regere_vestīgium_scālae_aliud(@GradusVestīgiīScālae aliud,)
+{
+    circum.prōcēdūra_regere_notās_clārās%("--------------------------------------\nVestīgium Scālae: / Trace of Stack:",);
+    dum @GradusVestīgiīScālae node = aliud; node
+    {
+        circum.prōcēdūra_regere_notās_clārās%("\n    ",);
+        circum.prōcēdūra_regere_notās_clārās%(node.vestīgium_prōcēdūrae%,);
+        circum.prōcēdūra_regere_notās_clārās%(" @ ",);
+        circum.prōcēdūra_regere_notās_clārās%(node.vestīgium_scāpī%,);
+        circum.prōcēdūra_regere_notās_clārās%(":",);
+        
+        n64 line_number = node.vestīgium_versūs%;
+        []n8 buf = campō_adlocā<n8,>(20,);
+        n64 char_count = 0;
+        dum line_number || char_count == 0
+        {
+            buf[buf.m - 1 - char_count]% = (n8)(line_number ? 10);
+            char_count += 1;
+            line_number /= 10;
+        }
+        circum.prōcēdūra_regere_notās_clārās%(buf[buf.m - char_count..],);
+        node = node.gradus_superus%;
+    }
+    circum.prōcēdūra_regere_notās_clārās%("\n--------------------------------------\n",);
+}
+
+
+#spatium octētōrum ā scāpo "clear_to_utf8.table" clear_to_utf8_buf;
+#spatium octētōrum ā scāpo "fast_u_ad_c.table" fast_u_ad_c_buf;
+
+prōcēdūra clāra_ā_utf8([]n8 utf8,) -> (n8, n64,) /* (clear char, number of bytes consumed) */
+{
+    n8 first_byte = utf8.i%;
+    sī first_byte & 0x80 == 0
+    {
+        n8 value = ((@n8)fast_u_ad_c_buf + (@n8)first_byte)%;
+        #refer (value, value != 0xff,);
+    }
+    n8 a; n64 b;
+    (a, b,) = clāra_ā_utf8_long(utf8,);
+    #refer (a, b,);
+}
+
+prōcēdūra clāra_ā_utf8_long([]n8 utf8,) -> (n8, n64,) /* (clear char, number of bytes consumed) */
+{
+    sī utf8.m > 2 && (utf8[0]% & 0xE0) == 0xC0 { utf8.m = 2; }
+    sīve utf8.m > 3 && (utf8[0]% & 0xE0) == 0xE0 { utf8.m = 3; }
+
+    n64 u = 0;
+    n64 consumed_count = utf8.m;
+    dum utf8.m
+    {
+        u |= (n64) utf8[utf8.m - 1]%;
+        utf8.m -= 1;
+        sī utf8.m { u = u << 8; }
+    }
+
+    dum n64 i = 0; i*4 < clear_to_utf8_buf.m
+    {
+        n64 o = ((@n64)(clear_to_utf8_buf + i*4))% & 0xFfffFfff;
+        sī u == o
+        { #refer ((n8)i, consumed_count,); }
+        
+        i += 1;
+    }
+    #refer (0, 0,);
+}

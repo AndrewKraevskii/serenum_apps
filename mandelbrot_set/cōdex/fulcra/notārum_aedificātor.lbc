@@ -1,0 +1,179 @@
+
+peregrīna prōcēdūra dīrue();
+peregrīna prōcēdūra dīrue_terminō(n64 index, n64 bound,);
+peregrīna prōcēdūra dīrue_terminō_exteriōre(n64 index, n64 bound,);
+peregrīna prōcēdūra dīrue_adfirmātiōne([]n8 msg,);
+
+peregrīna strūctūra AedificātorNotārum
+{
+    @SitulaMemoriae situla;
+    @n8 nōdus_prīmus;
+    @@n8 nōdus_futūrus;
+}
+
+strūctūra NōdusNotārum
+{
+    @NōdusNotārum nōdus_proximus;
+    []n8 notae;
+}
+
+peregrīna prōcēdūra aedificātor_notārum_creā(
+    @SitulaMemoriae situla,
+) -> @AedificātorNotārum
+{
+    @AedificātorNotārum aed = situlā_adlocā<AedificātorNotārum,>(situla, 1,).i;
+    aed.situla% = situla;
+    aed.nōdus_prīmus% = 0;
+    aed.nōdus_futūrus% = aed.nōdus_prīmus;
+    #refer aed;
+}
+
+peregrīna prōcēdūra aedificātor_notārum_notās_preme(
+    @AedificātorNotārum aed,
+    []n8 notae,
+)
+{
+    @NōdusNotārum n = situlā_adlocā<NōdusNotārum,>(aed.situla%, 1,).i;
+    n.nōdus_proximus% = 0;
+    n.notae% = notae;
+    
+    ((@@NōdusNotārum)aed.nōdus_futūrus%)% = n;
+    aed.nōdus_futūrus% = (@@n8)n.nōdus_proximus;
+}
+
+peregrīna prōcēdūra aedificātor_notārum_notam_preme(
+    @AedificātorNotārum aed,
+    n8 nota,
+)
+{
+    []n8 buf = situlā_adlocā<n8,>(aed.situla%, 1,);
+    buf[0]% = nota;
+    aedificātor_notārum_notās_preme(aed, buf,);
+}
+
+peregrīna prōcēdūra aedificātor_notārum_nātīvum_preme(
+    @AedificātorNotārum aed,
+    n64 nat,
+)
+{
+    []n8 buf;
+    sī nat
+    {
+        buf = situlā_adlocā<n8,>(aed.situla%, 20,);
+        n64 digits = 0;
+        dum nat
+        {
+            buf[buf.m - 1 - digits]% = (n8)(nat ? 10);
+            digits += 1;
+            nat /= 10;
+        }
+        buf = buf[buf.m - digits..];
+    }
+    sī nōn
+    { buf = "0"; }
+    aedificātor_notārum_notās_preme(aed, buf,);
+}
+
+peregrīna prōcēdūra aedificātor_notārum_signātum_preme(
+    @AedificātorNotārum aed,
+    s64 signātus,
+)
+{
+    sī signātus < 0
+    { aedificātor_notārum_notam_preme(aed, '-',); }
+    signātus *= -1;
+    aedificātor_notārum_nātīvum_preme(aed, (n64)signātus,);
+}
+
+peregrīna prōcēdūra aedificātor_notārum_sēdecimālem_preme(
+    @AedificātorNotārum aed,
+    n64 nat,
+)
+{
+    []n8 buf;
+    sī nat
+    {
+        buf = situlā_adlocā<n8,>(aed.situla%, 16,);
+        n64 digits = 0;
+        dum nat
+        {
+            n8 nota = (n8)(nat ? 16);
+            sī nota == 0xA
+            { nota = 'A'; }
+            sīve nota == 0xB
+            { nota = 'B'; }
+            sīve nota == 0xC
+            { nota = 'C'; }
+            sīve nota == 0xD
+            { nota = 'D'; }
+            sīve nota == 0xE
+            { nota = 'E'; }
+            sīve nota == 0xF
+            { nota = 'F'; }
+            buf[buf.m - 1 - digits]% = nota;
+            digits += 1;
+            nat /= 16;
+        }
+        buf = buf[buf.m - digits..];
+    }
+    sī nōn
+    { buf = "0"; }
+    aedificātor_notārum_notās_preme(aed, "0x",);
+    aedificātor_notārum_notās_preme(aed, buf,);
+}
+
+// Uses the situla_data on the context.
+peregrīna prōcēdūra aedificātor_notārum_aedificā(@AedificātorNotārum aed,) -> []n8
+{
+    n64 len = 0;
+    dum @NōdusNotārum n = (@NōdusNotārum)aed.nōdus_prīmus%; n
+    {
+        len += n.notae.m%;
+        n = n.nōdus_proximus%;
+    }
+    
+    []n8 dest = situlā_adlocā<n8,>(circum.situla_data%, len,);
+    n64 di = 0;
+    
+    dum @NōdusNotārum n = (@NōdusNotārum)aed.nōdus_prīmus%; n
+    {
+        dum []n8 notae = n.notae%; notae.m
+        {
+            dest[di]% = notae[0]%;
+            di += 1;
+            notae = notae[1..];
+        }
+        n = n.nōdus_proximus%;
+    }
+    #refer dest;
+}
+
+// Builds the string on site, 'in sitū'. Will truncate if the string does not fit.
+peregrīna prōcēdūra aedificātor_notārum_aedificā_in_sitū(@AedificātorNotārum aed, []n8 situs,) -> []n8
+{
+    n64 di = 0;
+    dum @NōdusNotārum n = (@NōdusNotārum)aed.nōdus_prīmus%; n && di < situs.m
+    {
+        dum []n8 notae = n.notae%; notae.m && di < situs.m
+        {
+            situs[di]% = notae[0]%;
+            di += 1;
+            notae = notae[1..];
+        }
+        n = n.nōdus_proximus%;
+    }
+    #refer situs[0..di];
+}
+
+// Mētīre means 'measure' and is named as such because getting the length of the
+// string requires work.
+peregrīna prōcēdūra aedificātor_notārum_aedificā_mētīre(@AedificātorNotārum aed,) -> n64
+{
+    n64 len = 0;
+    dum @NōdusNotārum n = (@NōdusNotārum)aed.nōdus_prīmus%; n
+    {
+        len += n.notae.m%;
+        n = n.nōdus_proximus%;
+    }
+    #refer len;
+}

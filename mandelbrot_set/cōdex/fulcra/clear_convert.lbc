@@ -1,0 +1,75 @@
+
+#spatium octētōrum ā scāpo "clear_to_utf8.table" clear_to_utf8_buf;
+
+peregrīna prōcēdūra abort();
+peregrīna prōcēdūra dīrue();
+peregrīna prōcēdūra dīrue_terminō();
+peregrīna prōcēdūra dīrue_terminō_exteriōre();
+
+peregrīna prōcēdūra utf8_ā_clārā(n8 c, []n8 mem,) -> []n8
+{
+    sī ((n64)c)*4 >= clear_to_utf8_buf.m
+    { #refer mem[0..0]; }
+
+    n64 u = 0;
+    u |= ((@n64)(clear_to_utf8_buf + ((n64)c)*4 + 0))% << 0;
+    u |= ((@n64)(clear_to_utf8_buf + ((n64)c)*4 + 1))% << 8;
+    u |= ((@n64)(clear_to_utf8_buf + ((n64)c)*4 + 2))% << 16;
+    u |= ((@n64)(clear_to_utf8_buf + ((n64)c)*4 + 3))% << 24;
+    
+    []n8 uarr = mem;
+    sī u & 0xff000000 { uarr.m = 4; }
+    sīve u & 0xff0000 { uarr.m = 3; }
+    sīve u & 0xff00 { uarr.m = 2; }
+    sīve u & 0xff { uarr.m = 1; }
+    sī nōn { uarr.m = 0; }
+    sī mem.m < uarr.m { uarr.m = mem.m; }
+    
+    dum n64 i = 0; i < uarr.m
+    {
+        uarr[i]% = (n8)(u & 0xff);
+        u = u >> 8;
+        i += 1;
+    }
+    #refer uarr;
+}
+
+#spatium octētōrum ā scāpo "fast_u_ad_c.table" fast_u_ad_c_buf;
+
+peregrīna prōcēdūra clāra_ā_utf8([]n8 utf8,) -> (n8, n64,) /* (clear char, number of bytes consumed) */
+{
+    n8 first_byte = utf8.i%;
+    sī first_byte & 0x80 == 0
+    {
+        n8 value = ((@n8)fast_u_ad_c_buf + (@n8)first_byte)%;
+        #refer (value, value != 0xff,);
+    }
+    n8 a; n64 b;
+    (a, b,) = clāra_ā_utf8_long(utf8,);
+    #refer (a, b,);
+}
+
+peregrīna prōcēdūra clāra_ā_utf8_long([]n8 utf8,) -> (n8, n64,) /* (clear char, number of bytes consumed) */
+{
+    sī utf8.m > 2 && (utf8[0]% & 0xE0) == 0xC0 { utf8.m = 2; }
+    sīve utf8.m > 3 && (utf8[0]% & 0xE0) == 0xE0 { utf8.m = 3; }
+
+    n64 u = 0;
+    n64 consumed_count = utf8.m;
+    dum utf8.m
+    {
+        u |= (n64) utf8[utf8.m - 1]%;
+        utf8.m -= 1;
+        sī utf8.m { u = u << 8; }
+    }
+
+    dum n64 i = 0; i*4 < clear_to_utf8_buf.m
+    {
+        n64 o = ((@n64)(clear_to_utf8_buf + i*4))% & 0xFfffFfff;
+        sī u == o
+        { #refer ((n8)i, consumed_count,); }
+        
+        i += 1;
+    }
+    #refer (0, 0,);
+}

@@ -1,0 +1,259 @@
+
+#spatium octētōrum ā scāpo "aurēlia.vw16" aurelia;
+
+peregrīna prōcēdūra aurelia_char_width(n8 c,) -> n64
+{ #refer aurelia[c]%; }
+
+peregrīna prōcēdūra aurelia_char_glyph(n8 c,) -> @[16]n64
+{ #refer (@[16]n64) aurelia[112 + (c*16*8)]; }
+
+peregrīna prōcēdūra aurelia_string_width([]n8 string,) -> n64
+{
+    n64 x = 0;
+    dum string.m
+    {
+        n8 c = string[0]%;
+        string = string[1..];        
+        sī c > ' '
+        { c = ' '; }
+        x += aurelia[c]%;
+    }
+    #refer x;
+}
+
+peregrīna prōcēdūra aurelia_char_width_table() -> []n8
+{ #refer aurelia[0..'\n']; }
+
+peregrīna prōcēdūra aurelia_truncate_string_to_pixels([]n8 string, n64 pixels,) -> []n8
+{
+    n64 x = 0;
+    []n8 ret = string[0..0];
+    dum ret.m < string.m
+    {
+        x += aurelia[string[ret.m]%]%;
+        sī x > pixels
+        { #refer ret; }
+        ret.m += 1;
+    }
+    #refer ret;
+}
+
+peregrīna prōcēdūra aurelia_truncate_string_to_pixels_on_space([]n8 string, n64 pixels,) -> []n8
+{
+    n64 x = 0;
+    n64 last_space = 0;
+    []n8 ret = string[0..0];
+    dum ret.m < string.m
+    {
+        n8 c = string[ret.m]%;
+        x += aurelia[c]%;
+        sī x > pixels
+        {
+            sī c != ' ' && last_space != 0
+            { ret.m = last_space; }
+            #refer ret;
+        }
+        sī c == ' '
+        { last_space = ret.m; }
+        ret.m += 1;
+    }
+    #refer ret;
+}
+
+peregrīna prōcēdūra aurelia_put_string_line([]n8 string, @n32 dest, @n32 stride, n32 fg, n32 bg,) -> n64
+{
+    n64 x = 0;
+    dum string.m
+    {
+        n8 c = string[0]%;
+        string = string[1..];
+        
+        n64 width = aurelia[c]%;
+        @[16]n64 glyph = (@[16]n64) aurelia[112 + (c*16*8)];
+        
+        put_glyph(glyph, dest, stride, fg, bg, width,);
+        dest += (@n32)width << 2;
+        x += width;
+    }
+    #refer x;
+}
+
+/*rv
+prōcēdūra compīlāta put_glyph(@[16]n64 masks, @n32 dest, @n32 stride, n32 fg, n32 bg, n64 char_width,)
+"
+    li t0, 2
+    vsetvli x0, a5, e32, m8
+    vmv.v.x v8, a3
+    vmv.v.x v16, a4
+
+    li t2, 17
+loop:
+    addi t2, t2, -1
+    beqz t2, loop_end
+
+    vsetvli x0, t0, e32, m8
+    vle.v v0, (a0)
+    vsetvli x0, a5, e32, m8
+    vse.v v8, (a1), v0.t
+    
+    vsetvli x0, t0, e32, m8
+    vxor.vi v0, v0, -1
+    vsetvli x0, a5, e32, m8
+    vse.v v16, (a1), v0.t
+    
+    add a1, a1, a2
+    addi a0, a0, 8
+    j loop
+
+loop_end:
+    ret
+"
+*/
+
+
+/*amd
+prōcēdūra put_glyph(@[16]n64 masks, @n32 dest, @n32 stride, n32 fg, n32 bg, n64 char_width,)
+{
+    dum n64 y = 0; y < 16
+    {
+        n64 line_mask = masks[y]%;
+        @n32 put = dest;
+        dum n64 x = 0; x < char_width
+        {
+            n64 not_mask = (line_mask & 1) - 1;
+            line_mask = line_mask >> 4;
+            
+            sī not_mask
+            { put% = bg; }
+            sī nōn
+            { put% = fg; }
+            x += 1;
+            put += 4;
+        }
+        y += 1;
+        dest += stride;
+    }
+}
+*/
+
+
+peregrīna prōcēdūra aurelia_put_string_line_2x([]n8 string, @n32 dest, @n32 stride, n32 fg, n32 bg,) -> n64
+{
+    n64 x = 0;
+    dum string.m
+    {
+        n8 c = string[0]%;
+        string = string[1..];
+        
+        n64 width = aurelia[c]%;
+        @[16]n64 glyph = (@[16]n64) aurelia[112 + (c*16*8)];
+        
+        put_glyph_2x(glyph, dest, stride, fg, bg, width,);
+        dest += (@n32)width << 3;
+        x += width;
+    }
+    #refer x;
+}
+
+prōcēdūra put_glyph_2x(@[16]n64 masks, @n32 dest, @n32 stride, n32 fg, n32 bg, n64 char_width,)
+{
+    dum n64 y = 0; y < 32
+    {
+        n64 line_mask = masks[y/2]%;
+        @n32 put = dest;
+        dum n64 x = 0; x < char_width
+        {
+            n64 not_mask = (line_mask & 1) - 1;
+            line_mask = line_mask >> 4;
+            
+            sī not_mask
+            { put% = bg; (put+4)% = bg; }
+            sī nōn
+            { put% = fg; (put+4)% = fg; }
+            put += 8;
+            x += 1;
+        }
+        y += 1;
+        dest += stride;
+    }
+}
+
+
+peregrīna prōcēdūra aurelia_put_string_line_no_bg([]n8 string, @n32 dest, @n32 stride, n32 fg,) -> n64
+{
+    n64 x = 0;
+    dum string.m
+    {
+        n8 c = string[0]%;
+        string = string[1..];
+        
+        n64 width = aurelia[c]%;
+        @[16]n64 glyph = (@[16]n64) aurelia[112 + (c*16*8)];
+        
+        put_glyph_no_bg(glyph, dest, stride, fg, width,);
+        dest += (@n32)width << 2;
+        x += width;
+    }
+    #refer x;
+}
+
+prōcēdūra put_glyph_no_bg(@[16]n64 masks, @n32 dest, @n32 stride, n32 fg, n64 char_width,)
+{
+    dum n64 y = 0; y < 16
+    {
+        n64 line_mask = masks[y]%;
+        @n32 put = dest;
+        dum n64 x = 0; x < char_width
+        {
+            n64 not_mask = (line_mask & 1) - 1;
+            line_mask = line_mask >> 4;
+            
+            sī not_mask == 0
+            { put% = fg; }
+            x += 1;
+            put += 4;
+        }
+        y += 1;
+        dest += stride;
+    }
+}
+
+
+peregrīna prōcēdūra aurelia_put_string_line_2x_no_bg([]n8 string, @n32 dest, @n32 stride, n32 fg,) -> n64
+{
+    n64 x = 0;
+    dum string.m
+    {
+        n8 c = string[0]%;
+        string = string[1..];
+        
+        n64 width = aurelia[c]%;
+        @[16]n64 glyph = (@[16]n64) aurelia[112 + (c*16*8)];
+        
+        put_glyph_2x_no_bg(glyph, dest, stride, fg, width,);
+        dest += (@n32)width << 3;
+        x += width;
+    }
+    #refer x;
+}
+
+prōcēdūra put_glyph_2x_no_bg(@[16]n64 masks, @n32 dest, @n32 stride, n32 fg, n64 char_width,)
+{
+    dum n64 y = 0; y < 32
+    {
+        n64 line_mask = masks[y/2]%;
+        @n32 put = dest;
+        dum n64 x = 0; x < char_width
+        {
+            n64 not_mask = (line_mask & 1) - 1;
+            line_mask = line_mask >> 4;
+            
+            sī not_mask == 0
+            { put% = fg; (put+4)% = fg; }
+            put += 8;
+            x += 1;
+        }
+        y += 1;
+        dest += stride;
+    }
+}

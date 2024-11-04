@@ -1,0 +1,53 @@
+
+#spatium octētōrum ā scāpo "pixel_code.mw6h11" pixel_code;
+
+peregrīna prōcēdūra pixel_code_get_masks() -> @[106][11]n32
+{ #refer (@[106][11]n32)pixel_code; }
+
+peregrīna prōcēdūra pixel_code_put_string_line([]n8 string, @n32 dest, @n32 stride, n32 fg, n32 bg,) -> n64
+{
+    n64 x = 0;
+    dum string.m
+    {
+        n8 c = string[0]%;
+        string = string[1..];
+        
+        @[11]n32 glyph = (@[11]n32) pixel_code[c*11*4];
+        
+        put_glyph(glyph, dest, stride, fg, bg,);
+        dest += 6*4;
+        x += 6;
+    }
+    #refer x;
+}
+
+prōcēdūra compīlāta put_glyph(@[11]n32 masks, @n32 dest, @n32 stride, n32 fg, n32 bg,)
+"
+    li t0, 1 # one n32 mask
+    li t1, 6
+    vsetvli x0, t1, e32, m8
+    vmv.v.x v8, a3
+    vmv.v.x v16, a4
+
+    li t2, 12
+loop:
+    addi t2, t2, -1
+    beqz t2, loop_end
+
+    vsetvli x0, t0, e32, m8
+    vle.v v0, (a0)
+    vsetvli x0, t1, e32, m8
+    vse.v v8, (a1), v0.t
+    
+    vsetvli x0, t0, e32, m8
+    vxor.vi v0, v0, -1
+    vsetvli x0, t1, e32, m8
+    vse.v v16, (a1), v0.t
+    
+    add a1, a1, a2
+    addi a0, a0, 4
+    j loop
+
+loop_end:
+    ret
+"

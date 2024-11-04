@@ -1,0 +1,213 @@
+
+peregrīna strūctūra UG_Framebuffer
+{
+    @n8 buffer;
+    n64 width;
+    n64 height;
+}
+
+
+prōcēdūra compīlāta ug_draw_rect_asm(n64 base, n64 stride, n64 width, n64 height, n64 color,)
+"
+    vsetvli s4, a2, e32, m8
+    vmv.v.x v8, a4
+    
+    li a7, 0 # y
+ug_draw_rect_asm_y_loop:
+    mv s2, a0 # pointer
+    mv s3, a2 # counter
+
+ug_draw_rect_asm_x_loop:
+    vsetvli s4, s3, e32, m8
+    vse.v v8, (s2)
+    sub s3, s3, s4
+    slli s4, s4, 2
+    add s2, s2, s4
+    
+    bnez s3, ug_draw_rect_asm_x_loop
+    
+    add a0, a0, a1
+    addi a7, a7, 1
+    bne a7, a3, ug_draw_rect_asm_y_loop
+    ret
+"
+peregrīna prōcēdūra ug_draw_rect(UG_Framebuffer fb, s64 x, s64 y, n64 width, n64 height, n64 color,)
+{
+    sī (n64)x >= fb.width || (n64)y >= fb.height || width == 0 || height == 0
+    { #refer; }
+    sī (n64)x + width > fb.width
+    { width = fb.width - (n64)x; }
+    sī (n64)y + height > fb.height
+    { height = fb.height - (n64)y; }
+    
+    ug_draw_rect_asm(fb.buffer + 4*((n64)y * fb.width + (n64)x), fb.width*4, width, height,
+        0xFFffFF & color,);
+}
+
+
+peregrīna strūctūra UG_Font
+{
+    [111936]n8 bitmaps;
+}
+peregrīna prōcēdūra compīlāta ug_init_font(@UG_Font ug_font, @n8 ecf_font, n64 fg_color, n64 bg_color,)
+"
+    
+    srli s2, a2, 0
+    andi s2, s2, 0xFF
+    srli s3, a2, 8
+    andi s3, s3, 0xFF
+    srli s4, a2, 16
+    andi s4, s4, 0xFF
+    
+    srli s5, a3, 0
+    andi s5, s5, 0xFF
+    srli s6, a3, 8
+    andi s6, s6, 0xFF
+    srli s7, a3, 16
+    andi s7, s7, 0xFF
+    
+    li t2, 255
+    li a5, 27456
+    li a6, 4 # stride
+ug_init_font_loop1:
+    vsetvli t4, a5, e16, m8
+    
+    vlbu.v v0, (a1)
+    vmv.v.v v8, v0
+    vrsub.vx v16, v0, t2
+    
+    vmul.vx v8, v8, s2
+    vmul.vx v16, v16, s5
+    vadd.vv v8, v8, v16
+    vdiv.vx v8, v8, t2
+    vssb.v v8, (a0), a6
+    
+    vmv.v.v v8, v0
+    vrsub.vx v16, v0, t2
+    
+    vmul.vx v8, v8, s3
+    vmul.vx v16, v16, s6
+    vadd.vv v8, v8, v16
+    vdiv.vx v8, v8, t2
+    addi t5, a0, 1
+    vssb.v v8, (t5), a6
+    
+    vmv.v.v v8, v0
+    vrsub.vx v16, v0, t2
+    
+    vmul.vx v8, v8, s4
+    vmul.vx v16, v16, s7
+    vadd.vv v8, v8, v16
+    vdiv.vx v8, v8, t2
+    addi t5, a0, 2
+    vssb.v v8, (t5), a6
+    
+    sub a5, a5, t4
+    add a1, a1, t4
+    slli t4, t4, 2
+    add a0, a0, t4
+    bnez a5, ug_init_font_loop1
+    
+    li a5, 528
+ug_init_font_loop2:
+    sb s5, 0(a0)
+    sb s6, 1(a0)
+    sb s7, 2(a0)
+
+    addi a0, a0, 4
+    addi a5, a5, -1
+    bnez a5, ug_init_font_loop2
+    ret
+"
+
+prōcēdūra compīlāta ug_draw_text_line_asm(n64 base, n64 stride, n64 font_base, n64 text_offsets, n64 text_offset_count,)
+"
+ug_draw_text_line_asm_char_loop:
+    beqz a4, ug_draw_text_line_asm_char_loop_end
+    vsetvli t0, a4, e32, m8
+    vlhu.v v8, (a3)
+    sub a4, a4, t0
+    add a3, a3, t0
+    add a3, a3, t0
+    
+    vsll.vi v8, v8, 2
+    
+    mv t2, a0
+    mv t3, a2
+    
+    li s2, 22 # y
+ug_draw_text_line_asm_y_loop:
+    
+    vlxwu.v v16, (t3), v8
+    vsw.v v16, (t2)
+    
+    add t2, t2, a1
+    addi t3, t3, 48
+    addi s2, s2, -1
+    bnez s2, ug_draw_text_line_asm_y_loop
+    
+    slli t0, t0, 2
+    add a0, a0, t0
+    j ug_draw_text_line_asm_char_loop
+ug_draw_text_line_asm_char_loop_end:
+    ret
+"
+prōcēdūra compīlāta ug_draw_text_line_prepare_char_line_asm(n64 addr, []n8 chars,)
+"   
+    lbu t1, (a1)
+    addi a1, a1, 1
+    addi a2, a2, -1
+    
+    li t0, 264
+    mul t1, t1, t0
+    sh t1, (a0)
+    addi t1, t1, 1
+    addi a0, a0, 2
+    sh t1, (a0)
+    addi t1, t1, 1
+    addi a0, a0, 2
+    sh t1, (a0)
+    addi t1, t1, 1
+    addi a0, a0, 2
+    sh t1, (a0)
+    addi t1, t1, 1
+    addi a0, a0, 2
+    sh t1, (a0)
+    addi t1, t1, 1
+    addi a0, a0, 2
+    sh t1, (a0)
+    addi t1, t1, 1
+    addi a0, a0, 2
+    sh t1, (a0)
+    addi t1, t1, 1
+    addi a0, a0, 2
+    sh t1, (a0)
+    addi t1, t1, 1
+    addi a0, a0, 2
+    sh t1, (a0)
+    addi t1, t1, 1
+    addi a0, a0, 2
+    sh t1, (a0)
+    addi t1, t1, 1
+    addi a0, a0, 2
+    sh t1, (a0)
+    addi t1, t1, 1
+    addi a0, a0, 2
+    sh t1, (a0)
+    addi a0, a0, 2
+    
+    bnez a2, ug_draw_text_line_prepare_char_line_asm
+    ret
+"
+peregrīna prōcēdūra ug_draw_text_line(UG_Framebuffer fb, @UG_Font font, s64 x, s64 y, []n8 text,)
+{
+    sī text.m == 0
+    { #refer; }
+    /* n16 buffer */
+    adfirmā(text.m <= 512,);
+    n64 tos = campō_adlocā<n8,>(512*12*2,).i;
+    ug_draw_text_line_prepare_char_line_asm(tos, text,);
+    
+    ug_draw_text_line_asm(fb.buffer + 4*(fb.width * (n64)y + (n64)x), fb.width*4, font, tos, text.m*12,);
+}
+

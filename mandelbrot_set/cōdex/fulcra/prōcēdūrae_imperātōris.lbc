@@ -1,0 +1,341 @@
+/* imp-prefix is short for imperātor */
+
+peregrīna prōcēdūra compīlāta imp_in_fluctum_octētos_preme([]n8 octēti,) -> n64
+"
+    li t0, 0 # syscall index
+    ecall
+    ret
+"
+
+peregrīna prōcēdūra compīlāta imp_ex_fluctu_octētos_prehende([]n8 spatium_octētōrum,) -> []n8
+"
+    li t0, 5 # syscall index
+    ecall
+    ret
+"
+
+peregrīna prōcēdūra compīlāta imp_scrīnii_nōmen_lege(n64 ansa_scrīnii, []n8 buf,) -> []n8
+"
+    li t0, 1 # syscall index
+    ecall
+    ret
+"
+peregrīna prōcēdūra compīlāta imp_scrīnii_scrīnia_perspice(n64 ansa_scrīnii, []n64 buf,) -> []n64
+"
+    li t0, 2 # syscall index
+    ecall
+    ret
+"
+peregrīna prōcēdūra compīlāta imp_scrīnii_scāpos_perspice(n64 ansa_scrīnii, []n64 buf,) -> []n64
+"
+    li t0, 3 # syscall index
+    ecall
+    ret
+"
+peregrīna prōcēdūra compīlāta imp_scāpi_nōmen_lege(n64 ansa_scāpi, []n8 buf,) -> []n8
+"
+    li t0, 4 # syscall index
+    ecall
+    ret
+"
+/* returns OperātioScāpi handle */
+peregrīna prōcēdūra compīlāta imp_scāpi_tesseras_perspice(n64 ansa_scāpi, [][2]n64 block_address_pairs,) -> n64
+"
+    li t0, 6 # syscall index
+    ecall
+    ret
+"
+/* (remaining, failed,) */
+peregrīna prōcēdūra compīlāta imp_scāpi_operātionis_tesserae_manentēs_frāctaeque(n64 ansa_operātionis,) -> (n64, n64,)
+"
+    li t0, 7 # syscall index
+    ecall
+    ret
+"
+peregrīna prōcēdūra compīlāta imp_scāpi_quot_octēti(n64 ansa_scāpi,) -> n64
+"
+    li t0, 8 # syscall index
+    ecall
+    ret
+"
+
+peregrīna prōcēdūra compīlāta imp_numerātor_cursūs_lege() -> n64
+"
+    li t0, 9 # syscall index
+    ecall
+    ret
+"
+peregrīna prōcēdūra compīlāta imp_numerātor_instructiōnum_remissārum_lege() -> n64
+"
+    li t0, 10 # syscall index
+    ecall
+    ret
+"
+
+peregrīna strūctūra KArgument
+{
+    n64 int_value; /* file,dir handle / string len */
+    /*
+    0 - string
+    1 - read dir
+    2 - write dir
+    3 - read file
+    4 - write file
+    5 - future dir
+    6 - future file
+    */
+    n8 arg_type;
+    [255]n8 string_buf;
+}
+peregrīna prōcēdūra karg_string(@KArgument karg,) -> []n8
+{ #refer karg.string_buf[0..karg.int_value%]; }
+
+peregrīna prōcēdūra compīlāta imp_programma_novum_ex_scāpō_initiā(n64 ansa_scāpi, []KArgument args,) -> n64
+"
+    li t0, 11 # syscall index
+    ecall
+    ret
+"
+
+peregrīna prōcēdūra compīlāta imp_adlocātionem_prōcessūs_crea(n64 numerus_pāginārum,) -> (n64, n64,)
+"
+    li t0, 12 # syscall index
+    ecall
+    ret
+"
+
+peregrīna prōcēdūra compīlāta imp_adlocātionem_in_spatio_insere(n64 ansa_adlocātionis, n64 addr,) -> n64
+"
+    li t0, 13 # syscall index
+    ecall
+    ret
+"
+/* returns handle in child handlespace, success */
+peregrīna prōcēdūra compīlāta imp_adlocātionem_filiō_da(n64 ansa_adlocātionis, n64 child_pid,) -> (n64, n64,)
+"
+    li t0, 28 # syscall index
+    ecall
+    ret
+"
+
+peregrīna prōcēdūra compīlāta imp_scāpi_numerus_octētōrum_dicta(n64 ansa_scāpi, n64 octētōrum,) -> n64
+"
+    li t0, 14 # syscall index
+    ecall
+    ret
+"
+
+/* returns OperātioScāpi handle */
+peregrīna prōcēdūra compīlāta imp_scāpi_tesseras_inscrībe(n64 ansa_scāpi, [][2]n64 block_address_pairs,) -> n64
+"
+    li t0, 16 # syscall index
+    ecall
+    ret
+"
+
+peregrīna strūctūra ImperātorisĒventūsClāviatūrae
+{
+    n8 clāvis;
+    n8 premitur;
+    [26]n8 status_clāvium;
+}
+
+peregrīna prōcēdūra compīlāta imp_clāviatūrae_ēventūs_obtine([]ImperātorisĒventūsClāviatūrae eventūs,) -> []ImperātorisĒventūsClāviatūrae
+"
+    li t0, 17 # syscall index
+    ecall
+    ret
+"
+
+peregrīna prōcēdūra compīlāta imp_child_get_status(n64 pid,) -> n64
+"
+    li t0, 18 # syscall index
+    ecall
+    ret
+"
+peregrīna prōcēdūra compīlāta imp_kill_child(n64 pid,)
+"
+    li t0, 19 # syscall index
+    ecall
+    ret
+"
+peregrīna prōcēdūra compīlāta imp_forget_child(n64 pid,)
+"
+    li t0, 39 # syscall index
+    ecall
+    ret
+"
+peregrīna prōcēdūra compīlāta imp_get_dead_child() -> (n64, n8,)
+"
+    li t0, 40 # syscall index
+    ecall
+    ret
+"
+
+peregrīna prōcēdūra compīlāta imp_write_to_child_in_stream(n64 pid, []n8 bytes,) -> n64
+"
+    li t0, 20 # syscall index
+    ecall
+    ret
+"
+peregrīna prōcēdūra compīlāta imp_read_from_child_out_stream(n64 pid, []n8 spatium_octētōrum,) -> []n8
+"
+    li t0, 23 # syscall index
+    ecall
+    ret
+"
+peregrīna prōcēdūra compīlāta imp_get_args([]KArgument arg_buf,) -> []KArgument
+"
+    li t0, 21 # syscall index
+    ecall
+    ret
+"
+
+peregrīna strūctūra TempusApollinis
+{
+    s64 low;
+    s64 high;
+}
+
+// This is deprecated. Just use the rdtime instruction.
+peregrīna prōcēdūra compīlāta imp_tempus_apollinis_prehende() -> TempusApollinis
+"
+    li t0, 15 # syscall index
+    ecall
+    ret
+"
+
+peregrīna prōcēdūra compīlāta imp_get_cpu_to_computer_apollo_offset() -> TempusApollinis
+"
+    li t0, 38 # syscall index
+    ecall
+    ret
+"
+
+peregrīna prōcēdūra compīlāta imp_yeild()
+"
+    li t0, 22 # syscall index
+    ecall
+    ret
+"
+peregrīna prōcēdūra compīlāta imp_yield()
+"
+    li t0, 22 # syscall index
+    ecall
+    ret
+"
+
+peregrīna prōcēdūra compīlāta imp_register_piip([]n8 name, n64 proc_pointer, n64 stack_pointer,) -> n64
+"
+    li t0, 24 # syscall index
+    ecall
+    ret
+"
+peregrīna prōcēdūra compīlāta imp_find_piip([]n8 name,) -> n64
+"
+    li t0, 25 # syscall index
+    ecall
+    ret
+"
+/* Crashes on invalid piip_handle. */
+peregrīna prōcēdūra compīlāta imp_invoke_piip(n64 piip_handle,)
+"
+    li t0, 26 # syscall index
+    ecall
+    ret
+"
+
+/*  STATUS     MEANING
+      0          Only terminate this thread, process stays alive.
+      1          Graceful exit and success
+      2          Graceful exit and failure
+      3          Ungraceful exit, aka crash */
+peregrīna prōcēdūra compīlāta imp_thread_exit(n64 status,)
+"
+    li t0, 27 # syscall index
+    ecall
+    ret
+"
+
+peregrīna strūctūra ImpDisplayBuffer
+{
+    n64 target_mode;
+    n64 active_mode;
+    n64 width;
+    n64 height;
+    n64 frame_index; /* bit 0 indicates if draw is finished, bit 1 indicates which buffer is the draw buffer */
+    s64@n8 fb0;
+    s64@n8 fb1;
+}
+
+peregrīna prōcēdūra compīlāta imp_try_get_display_buffer() -> (n64, n64,)
+"
+    li t0, 29 # syscall index
+    ecall
+    ret
+"
+
+peregrīna prōcēdūra compīlāta imp_portum_dominī_filiō_crea(n64 child_pid,) -> n64
+"
+    li t0, 30 # syscall index
+    ecall
+    ret
+"
+
+peregrīna prōcēdūra compīlāta imp_dominum_portō_filiī_transmitte(n64 child_pid,)
+"
+    li t0, 31 # syscall index
+    ecall
+    ret
+"
+
+/* (ansa_novī, success,) */
+peregrīna prōcēdūra compīlāta imp_scrīniō_scrīnium_crea(n64 scrīniō, []n8 nōmen_novī,) -> (n64, n64,)
+"
+    li t0, 32 # syscall index
+    ecall
+    ret
+"
+
+/* (ansa_novī, success,) */
+peregrīna prōcēdūra compīlāta imp_scrīniō_scāpum_crea(n64 scrīniō, []n8 nōmen_novī,) -> (n64, n64,)
+"
+    li t0, 33 # syscall index
+    ecall
+    ret
+"
+
+peregrīna prōcēdūra compīlāta imp_scāpum_destroy(n64 ansa_scāpi,) -> n64
+"
+    li t0, 34 # syscall index
+    ecall
+    ret
+"
+
+peregrīna prōcēdūra compīlāta imp_scrīnium_destroy(n64 ansa_scrīniī,) -> n64
+"
+    li t0, 35 # syscall index
+    ecall
+    ret
+"
+
+peregrīna prōcēdūra compīlāta imp_read_byte_from_child_process_memory(n64 child_pid, n64 vaddr,) -> (n8, n64,)
+"
+    li t0, 36 # syscall index
+    ecall
+    ret
+"
+
+peregrīna prōcēdūra compīlāta imp_write_byte_to_child_process_memory(n64 child_pid, n64 vaddr, n8 byte,) -> n64
+"
+    li t0, 37 # syscall index
+    ecall
+    ret
+"
+
+peregrīna prōcēdūra compīlāta imp_map_wifi(n64 ansa_adlocātionis,)
+"
+    li t0, 41 # syscall index
+    ecall
+    ret
+"

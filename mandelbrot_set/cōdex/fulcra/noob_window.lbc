@@ -1,0 +1,123 @@
+#particulam inveni "basis_serēna.lbc"
+#particulam inveni "prōcēdūrae_imperātōris.lbc"
+
+/*
+---------------- DO NOT USE THIS LIBRARY FOR MAKING GAMES ----------------
+    It will be too slow, just make the game in exclusive fullscreen
+    mode instead. Making a *fast* windowed program is hard because
+    you have to work with the window manager a lot to minimize drawing.
+    This library makes it easy to start making a windowed program and
+    provides a path to do some of these selective drawing optimzations.
+    
+    Below is the interface for the normal noob library for exclusive fullscreen
+    programs.
+    
+        noob_graphics_setup(1,);
+    
+        NoobFrame frame = noob_start_frame();
+        // draw
+        noob_end_frame();
+        
+    The window library stays close to this api with a few changes.
+*/
+
+strūctūra DumbFrame
+{
+    n32 width;
+    n32 height;
+    n32 frame_counter;
+    [4]n64 dirty_bits0;
+    [4]n64 dirty_bits1;
+    [1024][1024]n32 pixels0;
+    [1024][1024]n32 pixels1;
+    n64 key_take;
+    n64 key_put;
+    [128]NoobKeyEvent key_buffer;
+}
+
+variābile @DumbFrame df;
+
+peregrīna prōcēdūra noob_window_setup()
+{
+    n64 alien_handle;
+    alien_handle = imp_find_piip("serene 1k1k wm api v1",);
+    adfirmā(alien_handle != (n64)-1,);
+
+    n64 alloc_handle = wm_temp_get_window(alien_handle,);
+    
+    @DumbFrame frame = (@DumbFrame)situla_reserve_aligned(
+        get_global_address_space_situla(),
+        ((quot_octētī(DumbFrame)+4096-1)/4096)*4096,
+        4096,
+    ).i;
+    adfirmā(imp_adlocātionem_in_spatio_insere(alloc_handle, frame,),);
+    df% = frame;
+}
+
+prōcēdūra compīlāta wm_temp_get_window(n64 alien_handle,) -> n64
+"
+    li t1, 0
+    la t0, imp_invoke_piip
+    jalr x0, (t0)
+"
+
+peregrīna strūctūra NoobFrame
+{
+    @n32 pixels;
+    n64 width;
+    n64 height;
+}
+
+peregrīna prōcēdūra noob_window_frame_ready() -> n8
+{
+    adfirmā(df%,);
+    #refer df%.frame_counter% & 0x3 == 0;
+}
+
+peregrīna prōcēdūra noob_window_start_frame() -> (NoobFrame, @[4]n64,)
+{
+    adfirmā(df%,);
+    
+    adfirmā(df%.frame_counter% & 0x3 != 0x2 /* Frame already started! */,);
+    
+    dum df%.frame_counter% & 0x3
+    { imp_yeild(); }
+    df%.frame_counter% |= 1; // Started drawing flag.
+    
+    NoobFrame f;
+    @[4]n64 dbits;
+    
+    f.width = 1024;
+    f.height = 1024;
+
+    sī df%.frame_counter% & 0x4
+    { f.pixels = (@n32) df%.pixels1; dbits = df%.dirty_bits1; }
+    sī nōn
+    { f.pixels = (@n32) df%.pixels0; dbits = df%.dirty_bits0; }
+    
+    dbits[0]% = (n64)-1;
+    dbits[1]% = (n64)-1;
+    dbits[2]% = (n64)-1;
+    dbits[3]% = (n64)-1;
+    
+    #refer (f, dbits,);
+}
+
+peregrīna prōcēdūra noob_window_get_size() -> (n32, n32,)
+{ #refer (df%.width%, df%.height%,); }
+
+peregrīna prōcēdūra noob_window_end_frame()
+{
+    adfirmā(df%,);
+    adfirmā(df%.frame_counter% & 1 /* Do not call end frame without starting the frame! */,);
+    df%.frame_counter% |= 2; // Finished drawing flag.
+}
+
+peregrīna prōcēdūra noob_window_get_key() -> @NoobKeyEvent
+{
+    sī df%.key_take% >= df%.key_put%
+    { #refer 0; }
+    df%.key_take% += 1;
+    #refer df%.key_buffer[df%.key_take% ? df%.key_buffer.m];
+}
+

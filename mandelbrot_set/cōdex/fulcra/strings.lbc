@@ -1,0 +1,1062 @@
+#particulam inveni "regestiō.lbc"
+
+#spatium octētōrum ā scāpo "clear_to_utf8.table" clear_to_utf8_buf;
+#spatium octētōrum ā scāpo "fast_u_ad_c.table" fast_u_ad_c_buf;
+
+prōcēdūra utf8_ā_clārā(n8 c, []n8 mem,) -> []n8
+{
+    sī ((n64)c)*4 >= clear_to_utf8_buf.m
+    { #refer mem[0..0]; }
+
+    n64 u = 0;
+    u |= ((@n64)(clear_to_utf8_buf + ((n64)c)*4 + 0))% << 0;
+    u |= ((@n64)(clear_to_utf8_buf + ((n64)c)*4 + 1))% << 8;
+    u |= ((@n64)(clear_to_utf8_buf + ((n64)c)*4 + 2))% << 16;
+    u |= ((@n64)(clear_to_utf8_buf + ((n64)c)*4 + 3))% << 24;
+    
+    []n8 uarr = mem;
+    sī u & 0xff000000 { uarr.m = 4; }
+    sīve u & 0xff0000 { uarr.m = 3; }
+    sīve u & 0xff00 { uarr.m = 2; }
+    sīve u & 0xff { uarr.m = 1; }
+    sī nōn { uarr.m = 0; }
+    sī mem.m < uarr.m { uarr.m = mem.m; }
+    
+    dum n64 i = 0; i < uarr.m
+    {
+        uarr[i]% = (n8)(u & 0xff);
+        u = u >> 8;
+        i += 1;
+    }
+    #refer uarr;
+}
+
+prōcēdūra clāra_ā_utf8([]n8 utf8,) -> (n8, n64,) /* (clear char, number of bytes consumed) */
+{
+    n8 first_byte = utf8.i%;
+    sī first_byte & 0x80 == 0
+    {
+        n8 value = ((@n8)fast_u_ad_c_buf + (@n8)first_byte)%;
+        #refer (value, value != 0xff,);
+    }
+    n8 a; n64 b;
+    (a, b,) = clāra_ā_utf8_long(utf8,);
+    #refer (a, b,);
+}
+
+prōcēdūra clāra_ā_utf8_long([]n8 utf8,) -> (n8, n64,) /* (clear char, number of bytes consumed) */
+{
+    sī utf8.m > 2 && (utf8[0]% & 0xE0) == 0xC0 { utf8.m = 2; }
+    sīve utf8.m > 3 && (utf8[0]% & 0xE0) == 0xE0 { utf8.m = 3; }
+
+    n64 u = 0;
+    n64 consumed_count = utf8.m;
+    dum utf8.m
+    {
+        u |= (n64) utf8[utf8.m - 1]%;
+        utf8.m -= 1;
+        sī utf8.m { u = u << 8; }
+    }
+
+    dum n64 i = 0; i*4 < clear_to_utf8_buf.m
+    {
+        n64 o = ((@n64)(clear_to_utf8_buf + i*4))% & 0xFfffFfff;
+        sī u == o
+        { #refer ((n8)i, consumed_count,); }
+        
+        i += 1;
+    }
+    #refer (0, 0,);
+}
+
+
+absolūta s64_min = -0x8000000000000000;
+absolūta s64_max = 0x7FFFFFFFFFFFFFFF;
+
+peregrīna prōcēdūra constitue_in_chartā_clārā_notas_clāras([]n8 charta, []n8 clāras,) -> n64
+{
+    n64 i = 0;
+    dum i < clāras.m
+    {
+        charta[i]% = clāras[i]%;
+        i = i + 1;
+    }
+    #refer clāras.m;
+}
+
+peregrīna prōcēdūra TODO_fix_first_foreign_function_not_exported() {}
+
+peregrīna prōcēdūra constitue_in_chartā_clārā_notas_commūnes([]n8 charta, []n8 commūnes,) -> n64
+{
+    n64 i = 0;
+    n64 u = 0;
+    dum u < commūnes.m
+    {
+        n8 clear; n64 consumed;
+        (clear, consumed,) = clāra_ā_utf8(commūnes[u..(commūnes.m-u)],);
+        sī consumed == 0
+        {
+            u += 1;
+            #prōcēde;
+        }
+        charta[i]% = clear;
+        u = u + consumed;
+        i = i + 1;
+    }
+    #refer i;
+}
+
+peregrīna prōcēdūra constitue_in_chartā_clārā_numerum_nātīvum([]n8 charta, n64 numerum,) -> n64
+{
+    sī numerum == 0
+    {
+        charta[0]% = 0;
+        #refer 1;
+    }
+    sī nōn
+    {
+        [20]n8 charta_notārum;
+        n64 numerus_notārum = 0;
+        dum numerum > 0
+        {
+            n64 pars_numeri = numerum ? 10;
+            charta_notārum[numerus_notārum] = (n8)pars_numeri;
+            numerus_notārum = numerus_notārum + 1;
+            numerum = numerum / 10;
+        }
+
+        n64 i = 0;
+        dum numerus_notārum > 0
+        {
+            numerus_notārum = numerus_notārum - 1;
+            n8 nota_clāra = charta_notārum[numerus_notārum];
+            charta[i]% = nota_clāra;
+            i = i + 1;
+        }
+        #refer i;
+    }
+}
+
+peregrīna prōcēdūra constitue_in_chartā_clārā_numerum_signātum([]n8 charta, s64 numerum,) -> n64
+{
+    sī numerum >= 0
+    { #refer constitue_in_chartā_clārā_numerum_nātīvum(charta, (n64)numerum,); }
+    sī nōn
+    {
+        charta[0]% = 0x55;
+        #refer constitue_in_chartā_clārā_numerum_nātīvum(charta[1..(charta.m - 1)], (n64)(numerum * -1),);
+    }
+}
+
+peregrīna prōcēdūra constitue_in_chartā_clārā_numerum_nātīvum_sēdecimālem([]n8 charta, n64 numerum,) -> n64
+{
+    sī numerum == 0
+    {
+        constitue_in_chartā_clārā_notas_clāras(charta, "0x0",);
+        #refer 3;
+    }
+    sī nōn
+    {
+        [16]n8 charta_notārum;
+        n64 numerus_notārum = 0;
+        dum numerum > 0
+        {
+            n8 nota = (n8)(numerum ? 16);
+            numerum /= 16;
+
+            sī nota == 10
+            { nota = 0xa; }
+            sīve nota == 11
+            { nota = 0xe; }
+            sīve nota == 12
+            { nota = 0x10; }
+            sīve nota == 13
+            { nota = 0x12; }
+            sīve nota == 14
+            { nota = 0x14; }
+            sīve nota == 15
+            { nota = 0x18; }
+
+            charta_notārum[numerus_notārum] = nota;
+            numerus_notārum += 1;
+        }
+
+        constitue_in_chartā_clārā_notas_clāras(charta, "0x",);
+        n64 index_in_chartā = 2;
+        dum numerus_notārum > 0
+        {
+            numerus_notārum = numerus_notārum - 1;
+            n8 nota_clāra = charta_notārum[numerus_notārum];
+            charta[index_in_chartā]% = nota_clāra;
+            index_in_chartā = index_in_chartā + 1;
+        }
+        #refer index_in_chartā;
+    }
+
+}
+
+peregrīna prōcēdūra constitue_in_chartā_clārā_clāras_fōrmātās([]n8 charta, []n8 clāras, ...) -> n64
+{
+    n64 index_in_clāras = 0; /* pointer into the clear letters */
+    n64 index_in_adjuncta = 0; /* pointer into the additional */
+
+    n64 index_in_chartā = 0;
+
+    [1]n8 līnea_indicii_formam_mūtantis;
+    n64 numerus_indicii_formam_mūtantis = 0;
+    n64 cumulansne_indicium = 0;
+
+    dum index_in_clāras < clāras.m
+    {
+        sī cumulansne_indicium
+        {
+            sī clāras[index_in_clāras]% == 0x64
+            {
+                charta[index_in_chartā]% = 0x64;
+                index_in_chartā = index_in_chartā + 1;
+                cumulansne_indicium = 0;
+            }
+            sī nōn
+            {
+                sī clāras[index_in_clāras]% == 0x66
+                {
+                    n64 index_ad_quantitātem = indices_ad_quantitātes_parametrōrum_adjunctōrum[index_in_adjuncta]%;
+
+                    sī numerus_indicii_formam_mūtantis && līnea_indicii_formam_mūtantis[0] == 0x26
+                    {
+                        @n64 index_ad_nātīvum = (@n64) index_ad_quantitātem; /* suboptimal */
+                        index_in_chartā = index_in_chartā +
+                            constitue_in_chartā_clārā_numerum_nātīvum_sēdecimālem(
+                                charta[index_in_chartā..(charta.m - index_in_chartā)],
+                                index_ad_nātīvum%,
+                            );
+                    }
+
+                    sī numerus_indicii_formam_mūtantis == 0 && genera_parametrōrum_adjunctōrum[index_in_adjuncta]%.identitās% == 4 /* byte - octētus */
+                    {
+                        @n8 index_ad_octētum = (@n8) index_ad_quantitātem;
+                        index_in_chartā = index_in_chartā +
+                            constitue_in_chartā_clārā_numerum_nātīvum_sēdecimālem(
+                                charta[index_in_chartā..(charta.m - index_in_chartā)],
+                                index_ad_octētum%,
+                            );
+                    }
+                    sī numerus_indicii_formam_mūtantis == 0 && genera_parametrōrum_adjunctōrum[index_in_adjuncta]%.identitās% == 0 /* numerus nātīvus */
+                    {
+                        @n64 index_ad_nātīvum = (@n64) index_ad_quantitātem;
+                        index_in_chartā = index_in_chartā +
+                            constitue_in_chartā_clārā_numerum_nātīvum(
+                                charta[index_in_chartā..(charta.m - index_in_chartā)],
+                                index_ad_nātīvum%,
+                            );
+                    }
+                    sī numerus_indicii_formam_mūtantis == 0 && genera_parametrōrum_adjunctōrum[index_in_adjuncta]%.identitās% == 1 /* numerus signātus */
+                    {
+                        @s64 index_ad_signātum = (@s64) index_ad_quantitātem;
+                        index_in_chartā = index_in_chartā +
+                            constitue_in_chartā_clārā_numerum_signātum(
+                                charta[index_in_chartā..(charta.m - index_in_chartā)],
+                                index_ad_signātum%,
+                            );
+                    }
+                    sī numerus_indicii_formam_mūtantis == 0 && genera_parametrōrum_adjunctōrum[index_in_adjuncta]%.identitās% == 5 /* index */
+                    {
+                        @n64 index_ad_indicem = (@n64) index_ad_quantitātem;
+                        index_in_chartā = index_in_chartā +
+                            constitue_in_chartā_clārā_numerum_nātīvum_sēdecimālem(
+                                charta[index_in_chartā..(charta.m - index_in_chartā)],
+                                index_ad_indicem%,
+                            );
+                    }
+                    sī genera_parametrōrum_adjunctōrum[index_in_adjuncta]%.identitās% == 3 /* spatium */
+                    {
+                        @[]n8 index_ad_spatium = (@[]n8) index_ad_quantitātem;
+                        []n8 spatium = index_ad_spatium%;
+                        sī numerus_indicii_formam_mūtantis && līnea_indicii_formam_mūtantis[0] == 'c'
+                        {
+                            constitue_in_chartā_clārā_notas_clāras(
+                                charta[index_in_chartā..(charta.m - index_in_chartā)],
+                                spatium,
+                            );
+                            index_in_chartā = index_in_chartā + spatium.m;
+                        }
+                        sī numerus_indicii_formam_mūtantis && līnea_indicii_formam_mūtantis[0] == 'u'
+                        {
+                            index_in_chartā = index_in_chartā +
+                                constitue_in_chartā_clārā_notas_commūnes(
+                                    charta[index_in_chartā..(charta.m - index_in_chartā)],
+                                    spatium,
+                                );
+                        }
+                        sī numerus_indicii_formam_mūtantis == 0
+                        {
+                            index_in_chartā = index_in_chartā +
+                                constitue_in_chartā_clārā_clāras_fōrmātās(
+                                    charta[index_in_chartā..(charta.m - index_in_chartā)],
+                                    "spatium {{ index: {}, magnitūdō: {}, }",
+                                    spatium.i,
+                                    spatium.m,
+                                );
+                        }
+                    }
+
+                    index_in_adjuncta = index_in_adjuncta + 1;
+                    cumulansne_indicium = 0;
+                }
+                sī nōn
+                {
+                    līnea_indicii_formam_mūtantis[numerus_indicii_formam_mūtantis] = clāras[index_in_clāras]%;
+                    numerus_indicii_formam_mūtantis = numerus_indicii_formam_mūtantis + 1;
+                }
+            }
+            index_in_clāras = index_in_clāras + 1;
+        }
+        sī nōn
+        {
+            sī clāras[index_in_clāras]% == 0x64
+            { cumulansne_indicium = 1; numerus_indicii_formam_mūtantis = 0; }
+            sī nōn
+            {
+                charta[index_in_chartā]% = clāras[index_in_clāras]%;
+                index_in_chartā = index_in_chartā + 1;
+            }
+            index_in_clāras = index_in_clāras + 1;
+        }
+    }
+    #refer index_in_chartā;
+}
+
+peregrīna prōcēdūra compare_string([]n8 a, []n8 b,) -> s64
+{
+    n64 min = a.m;
+    sī b.m < min  { min = b.m; }
+
+    n64 index = 0;
+    dum index < min
+    {
+        sī a[index]% > b[index]%
+        { #refer 1; }
+        sī a[index]% < b[index]%
+        { #refer -1; }
+        index = index + 1;
+    }
+    sī a.m > b.m
+    { #refer 1; }
+    sī a.m < b.m
+    { #refer -1; }
+
+    #refer 0;
+}
+
+
+peregrīna prōcēdūra strings_equal([]n8 a, []n8 b,) -> n64
+{
+    sī a.m != b.m
+    { #refer 0; }
+    
+    n64 index = 0;
+    dum index < a.m
+    {
+        sī a[index]% != b[index]%
+        { #refer 0; }
+        index += 1;
+    }
+    #refer 1;
+}
+
+peregrīna prōcēdūra unicode_is_number(n8 unicode,) -> n64
+{
+    #refer unicode >= 0x30 && unicode <= 0x39;
+}
+
+peregrīna prōcēdūra byte_array_contains([]n8 array, n8 item,) -> n64
+{
+    n64 found = 0;
+    n64 index = 0;
+    dum index < array.m
+    {
+        sī array[index]% == item
+        { found = 1; #dēsine; }
+        index = index + 1;
+    }
+    #refer found;
+}
+
+peregrīna prōcēdūra string_split([]n8 src, @SitulaMemoriae dest_arena, []n8 split_chars,) -> [][]n8
+{
+    [][]n8 outbuffer;
+    outbuffer.i = (@[]n8)situlā_adlocā<n8,>(dest_arena, quot_octētī([]n8)*2,).i;
+    outbuffer.m = 0; /* set this at end */
+    @[]n8 outbuffer_mem = outbuffer.i + quot_octētī([]n8)*2;
+
+    @n8 start = src.i;
+    @n8 c_pointer = src.i;
+    @n8 c_end = src.i + (@n8)src.m;
+
+    @n8 split_end = split_chars.i + (@n8)split_chars.m;
+    @[]n8 out_pointer = outbuffer.i;
+    dum c_pointer < c_end
+    {
+        n8 c = c_pointer%;
+        dum @n8 split = split_chars.i; split < split_end
+        {
+            sī c == split%
+            {
+                sī out_pointer >= outbuffer_mem
+                {
+                    situlā_adlocā<n8,>(dest_arena, 32,);
+                    outbuffer_mem += 32;
+                }
+                sī start < c_pointer
+                {
+                    out_pointer.i% = start;
+                    out_pointer.m% = c_pointer - start;
+                    out_pointer += 16;
+                }
+                start = c_pointer + 1;
+
+                #dēsine;
+            }
+            split += 1;
+        }
+        c_pointer += 1;
+    }
+    sī out_pointer >= outbuffer_mem
+    {
+        situlā_adlocā<n8,>(dest_arena, 16,);
+        outbuffer_mem += 16;
+    }
+    sī start < c_pointer
+    {
+        out_pointer.i% = start;
+        out_pointer.m% = c_pointer - start;
+        out_pointer += 16;
+    }
+    outbuffer.m = (out_pointer - outbuffer.i) >> 4;
+    #refer outbuffer;
+}
+
+peregrīna prōcēdūra string_split_keep_all([]n8 src, @SitulaMemoriae dest_arena, []n8 split_chars,) -> [][]n8
+{
+    [][]n8 outbuffer;
+    outbuffer.i = (@[]n8)situlā_adlocā<n8,>(dest_arena, quot_octētī([]n8)*2,).i;
+    outbuffer.m = 0; /* set this at end */
+    @[]n8 outbuffer_mem = outbuffer.i + quot_octētī([]n8)*2;
+
+    @n8 start = src.i;
+    @n8 c_pointer = src.i;
+    @n8 c_end = src.i + (@n8)src.m;
+
+    @n8 split_end = split_chars.i + (@n8)split_chars.m;
+    @[]n8 out_pointer = outbuffer.i;
+    dum c_pointer < c_end
+    {
+        n8 c = c_pointer%;
+        dum @n8 split = split_chars.i; split < split_end
+        {
+            sī c == split%
+            {
+                sī out_pointer >= outbuffer_mem
+                {
+                    situlā_adlocā<n8,>(dest_arena, 32,);
+                    outbuffer_mem += 32;
+                }
+                out_pointer.i% = start;
+                out_pointer.m% = c_pointer + 1 - start;
+                out_pointer += 16;
+                start = c_pointer + 1;
+
+                #dēsine;
+            }
+            split += 1;
+        }
+        c_pointer += 1;
+    }
+    sī out_pointer >= outbuffer_mem
+    {
+        situlā_adlocā<n8,>(dest_arena, 16,);
+        outbuffer_mem += 16;
+    }
+    sī start < c_pointer
+    {
+        out_pointer.i% = start;
+        out_pointer.m% = c_pointer + 1 - start;
+        out_pointer += 16;
+    }
+    outbuffer.m = (out_pointer - outbuffer.i) >> 4;
+    #refer outbuffer;
+}
+
+peregrīna prōcēdūra string_split_single([]n8 src, @SitulaMemoriae dest_arena, n8 split_char,) -> [][]n8
+{
+/* Tune this and the above procedure for a better common case. */
+    [][]n8 outbuffer;
+    outbuffer.i = (@[]n8)situlā_adlocā<n8,>(dest_arena, 0,).i;
+    outbuffer.m = 0;
+    n64 start = 0;
+    n64 inside = 0;
+    n64 count = 0;
+    dum n64 i = 0; i <= src.m
+    {
+        sī inside == 0
+        {
+            sī i < src.m && src[i]% != split_char
+            { inside = 1; start = i; }
+            i += 1;
+        }
+        sī nōn
+        {
+            sī i == src.m || src[i]% == split_char
+            {
+                sī count >= outbuffer.m
+                {
+                    situlā_adlocā<n8,>(dest_arena, quot_octētī([]n8),);
+                    outbuffer.m += 1;
+                }
+                outbuffer[count]% = src[start..(i - start)];
+                count += 1;
+                inside = 0;
+            }
+            i += 1;
+        }
+    }
+    #refer outbuffer[0..count];
+}
+
+
+peregrīna prōcēdūra nota_commūnis_estne_vacua(n8 nota,) -> n64
+{
+    #refer nota == u' ' || nota == u'\n';
+}
+peregrīna prōcēdūra nota_clāra_estne_vacua(n8 nota,) -> n64
+{
+    #refer nota == " "[0]% || nota == "\n"[0]%;
+}
+
+/* TODO polish */
+peregrīna prōcēdūra lege_s64_ā_commūnibus([]n8 commūnes,) -> s64
+{
+    sī commūnes[0]% == u'-'
+    { #refer -lege_s64_ā_commūnibus(commūnes[1..commūnes.m - 1],); }
+    
+    #refer (s64) lege_n64_ā_commūnibus(commūnes,);
+}
+
+peregrīna prōcēdūra lege_n64_ā_commūnibus([]n8 commūnes,) -> n64
+{
+    n64 numerus_lectus; n64 quot_lecti_sunt; /* octēti lecti */
+    (numerus_lectus, quot_lecti_sunt,) = legere_tenta_n64_ā_commūnibus(commūnes,);
+    sī quot_lecti_sunt != commūnes.m
+    {
+        regere(
+            "Erras! Legere n64 nōn possum ā commūnibus '{u}'. Octētus {} est malum.\n",
+            commūnes,
+            quot_lecti_sunt,
+        );
+        dīrue();
+    }
+    #refer numerus_lectus;
+}
+
+peregrīna prōcēdūra lege_s64_ā_clārīs([]n8 commūnes,) -> s64
+{
+    sī commūnes[0]% == '-'
+    { #refer -lege_s64_ā_clārīs(commūnes[1..commūnes.m - 1],); }
+    
+    #refer (s64) lege_n64_ā_clārīs(commūnes,);
+}
+
+peregrīna prōcēdūra lege_n64_ā_clārīs([]n8 commūnes,) -> n64
+{
+    n64 numerus_lectus; n64 quot_lecti_sunt; /* octēti lecti */
+    (numerus_lectus, quot_lecti_sunt,) = legere_tenta_n64_ā_clārīs(commūnes,);
+    sī quot_lecti_sunt != commūnes.m
+    {
+        regere(
+            "Erras! Legere n64 nōn possum ā clārīs '{c}'. Octētus {} est malum.\n",
+            commūnes,
+            quot_lecti_sunt,
+        );
+        dīrue();
+    }
+    #refer numerus_lectus;
+}
+
+/* try to parse n64 from unicode characters, returns (result, number_of_chars_read,) */
+peregrīna prōcēdūra legere_tenta_n64_ā_commūnibus([]n8 commūnes,) -> (n64, n64,)
+{
+    sī commūnes.m >= 2 && strings_equal(commūnes[0..2], u"0x",)
+    {
+        []n8 sub = commūnes[2..commūnes.m - 2];
+
+        n64 pos = 1;
+        n64 i = 1;
+        sī sub.m == 0
+        {
+            #refer (s64_max, 0,);
+        }
+        dum i < sub.m
+        {
+            pos = pos * 16;
+            i = i + 1;
+        }
+        n64 acc = 0;
+        n64 j = 0;
+        dum j < sub.m
+        {
+            n8 digit = sub[j]%;
+            sī digit >= 0x30 && digit <= 0x39
+            {
+                acc = acc + ((n64)(digit - 0x30)) * pos;
+            }
+            sīve digit >= 0x41 && digit <= 0x46
+            {
+                acc = acc + ((n64)(digit - 0x41 + 0xA)) * pos;
+            }
+            sīve digit >= 0x61 && digit <= 0x66
+            {
+                acc = acc + ((n64)(digit - 0x61 + 0xA)) * pos;
+            }
+            sī nōn
+            {
+                #refer (s64_max, 2 + j,);
+            }
+
+            pos = pos / 16;
+            j = j + 1;
+        }
+        #refer (acc, commūnes.m,);
+    }
+    sī nōn
+    {
+        n64 pos = 1;
+        n64 i = 1;
+        sī commūnes.m == 0
+        {
+            #refer (s64_max, 0,);
+        }
+        dum i < commūnes.m
+        {
+            pos = pos * 10;
+            i = i + 1;
+        }
+        n64 acc = 0;
+        n64 j = 0;
+        dum j < commūnes.m
+        {
+            n8 digit = commūnes[j]%;
+            sī 0 == (digit >= 0x30 && digit <= 0x39)
+            { #refer (s64_max, j,); }
+            acc = acc + ((n64)(commūnes[j]% - 0x30)) * pos;
+            pos = pos / 10;
+            j = j + 1;
+        }
+        #refer (acc, commūnes.m,);
+    }
+}
+
+
+/* try to parse n64 from clear characters, returns (result, number_of_chars_read,) */
+peregrīna prōcēdūra legere_tenta_n64_ā_clārīs([]n8 clārae,) -> (n64, n64,)
+{
+    sī clārae.m >= 2 && strings_equal(clārae[0..2], "0x",)
+    {
+        []n8 sub = clārae[2..clārae.m - 2];
+
+        n64 pos = 1;
+        n64 i = 1;
+        sī sub.m == 0
+        {
+            #refer (s64_max, 0,);
+        }
+        dum i < sub.m
+        {
+            pos = pos * 16;
+            i = i + 1;
+        }
+        n64 acc = 0;
+        n64 j = 0;
+        dum j < sub.m
+        {
+            n8 digit = sub[j]%;
+            sī digit <= '9'
+            {}
+            sīve digit == 'A' || digit == 'a'
+            { digit = 0xA; }
+            sīve digit == 'B' || digit == 'b'
+            { digit = 0xB; }
+            sīve digit == 'C' || digit == 'c'
+            { digit = 0xC; }
+            sīve digit == 'D' || digit == 'd'
+            { digit = 0xD; }
+            sīve digit == 'E' || digit == 'e'
+            { digit = 0xE; }
+            sīve digit == 'F' || digit == 'f'
+            { digit = 0xF; }
+            sī nōn
+            { #refer (s64_max, 2+j,); }
+            
+            acc = acc + ((n64)digit) * pos;
+            pos = pos / 16;
+            j = j + 1;
+        }
+        #refer (acc, 2+j,);
+    }
+    sī nōn
+    {
+        n64 pos = 1;
+        n64 i = 1;
+        sī clārae.m == 0
+        {
+            #refer (s64_max, 0,);
+        }
+        dum i < clārae.m
+        {
+            pos = pos * 10;
+            i = i + 1;
+        }
+        n64 acc = 0;
+        n64 j = 0;
+        dum j < clārae.m
+        {
+            n8 digit = clārae[j]%;
+            sī 0 == (digit <= 9)
+            { #refer (s64_max, j,); }
+            acc = acc + ((n64)digit) * pos;
+            pos = pos / 10;
+            j = j + 1;
+        }
+        #refer (acc, j,);
+    }
+}
+
+peregrīna prōcēdūra scan_for_char([]n8 chars, n64 start, n8 char,) -> n64
+{
+    n64 j = start;
+    dum j < chars.m && chars[j]% != char
+    { j += 1; }
+    #refer j;
+}
+
+peregrīna prōcēdūra cōnstitue_clārās_commūnī(@SitulaMemoriae sit, []n8 commūnes,) -> []n8
+{
+    []n8 out_buffer = situlā_adlocā<n8,>(sit, commūnes.m,);
+    n64 put_index = 0;
+    
+    out_buffer.m = 
+        cōnstitue_clārās_commūnī_put_chars(
+            out_buffer.i,
+            commūnes,) - out_buffer.i;
+    
+    #refer out_buffer;
+}
+
+prōcēdūra cōnstitue_clārās_commūnī_put_chars(@n8 clear, []n8 unicode,) -> @n8 /* returns end clear */
+{
+    dum unicode.m
+    {
+        n64 num;
+        (clear%, num,) = clāra_ā_utf8(unicode,);
+        clear += (@n8)(num != 0);
+        unicode = unicode[num + (num == 0)..];
+    }
+    #refer clear;
+}
+
+peregrīna prōcēdūra cōnstitue_commūnēs_clārīs(@SitulaMemoriae sit, []n8 clārae,) -> []n8
+{
+    @n8 next_com = situlā_adlocā<n8,>(sit, 1,).i;
+    []n8 ret;
+    ret.i = next_com;
+    dum n64 c = 0; c < clārae.m
+    {
+        []n8 com = utf8_ā_clārā(clārae[c]%, campō_adlocā<n8,>(4,),);
+        c += 1;
+        
+        dum n64 i = 0; i < com.m
+        {
+            next_com% = com[i]%;
+            adfirmā(next_com + 1 == situlā_adlocā<n8,>(sit, 1,).i,);
+            next_com += 1;
+            i += 1;
+        }
+    }
+    ret.m = next_com - ret.i;
+    #refer ret;
+}
+
+peregrīna prōcēdūra cōnstitue_clārās_conjūnctās(@SitulaMemoriae sit, []n8 a, []n8 b,) -> []n8
+{
+    []n8 dest = situlā_adlocā<n8,>(sit, a.m + b.m,);
+    n64 d = 0;
+    dum n64 i = 0; i < a.m
+    { dest[d]% = a[i]%; d += 1; i += 1; }
+    dum n64 i = 0; i < b.m
+    { dest[d]% = b[i]%; d += 1; i += 1; }
+    #refer dest;
+}
+
+peregrīna prōcēdūra cōnstitue_clārās_numerō_nātīvō(@SitulaMemoriae sit, n64 numerum,) -> []n8
+{
+    sī numerum == 0
+    {
+        #refer "0";
+    }
+    sī nōn
+    {
+        []n8 clārās = situlā_adlocā<n8,>(sit, 20,);
+        clārās.m = constitue_in_chartā_clārā_numerum_nātīvum(clārās, numerum,);
+        #refer clārās;
+    }
+}
+
+peregrīna prōcēdūra cōnstitue_clārās_numerō_signātō(@SitulaMemoriae sit, s64 numerum,) -> []n8
+{
+    sī numerum >= 0
+    { #refer cōnstitue_clārās_numerō_nātīvō(sit, (n64)numerum,); }
+    sī nōn
+    {
+        []n8 temp = cōnstitue_clārās_numerō_nātīvō(sit, (n64)(numerum * -1),);
+        []n8 ret = situlā_adlocā<n8,>(sit, temp.m + 1,);
+        ret[0]% = '-';
+        dum n64 i = 0; i < temp.m
+        {
+            ret[i + 1]% = temp[i]%;
+            i += 1;
+        }
+        #refer ret;
+    }
+}
+
+peregrīna prōcēdūra cōnstitue_clārās_numerō_nātīvō_sēdecimālī(@SitulaMemoriae sit, n64 numerum,) -> []n8
+{
+    sī numerum == 0
+    {
+        #refer "0x0";
+    }
+    sī nōn
+    {
+        []n8 charta_notārum = campō_adlocā<n8,>(20,);
+        n64 numerus_notārum = 0;
+        dum numerum > 0
+        {
+            n64 pars_numeri = numerum ? 16;
+            n8 nota = 0;
+            sī pars_numeri <= 9
+            { nota = (n8)pars_numeri; }
+
+            sī pars_numeri == 10
+            { nota = 'A'; }
+            sī pars_numeri == 11
+            { nota = 'B'; }
+            sī pars_numeri == 12
+            { nota = 'C'; }
+            sī pars_numeri == 13
+            { nota = 'D'; }
+            sī pars_numeri == 14
+            { nota = 'E'; }
+            sī pars_numeri == 15
+            { nota = 'F'; }
+
+            charta_notārum[numerus_notārum]% = nota;
+            numerus_notārum = numerus_notārum + 1;
+            numerum = numerum / 16;
+        }
+
+        []n8 clārās = situlā_adlocā<n8,>(sit, numerus_notārum + 2,);
+        clārās[0]% = '0';
+        clārās[1]% = 'x';
+
+        n64 i = 0;
+        dum numerus_notārum > 0
+        {
+            numerus_notārum -= 1;
+            clārās[i+2]% = charta_notārum[numerus_notārum]%;
+            i += 1;
+        }
+        #refer clārās;
+    }
+}
+
+peregrīna prōcēdūra cōnstitue_clārās_indice_genereque(@SitulaMemoriae sit, n64 index, @Genus genus, n64 sēdecimālis,) -> []n8
+{
+    #dīverte genus.identitās%
+    {
+    cēterum
+    { dīrue(); }
+    sīve 0 /* n64 */
+    {
+        sī sēdecimālis
+        { #refer cōnstitue_clārās_numerō_nātīvō_sēdecimālī(sit, ((@n64)index)%,); }
+        sī nōn
+        { #refer cōnstitue_clārās_numerō_nātīvō(sit, ((@n64)index)%,); }
+    }
+    sīve 12 /* n32 */
+    {
+        sī sēdecimālis
+        { #refer cōnstitue_clārās_numerō_nātīvō_sēdecimālī(sit, ((@n32)index)%,); }
+        sī nōn
+        { #refer cōnstitue_clārās_numerō_nātīvō(sit, ((@n32)index)%,); }
+    }
+    sīve 4 /* n8 */
+    { #refer cōnstitue_clārās_numerō_nātīvō_sēdecimālī(sit, ((@n8)index)%,); }
+    sīve 5 /* index */
+    { #refer cōnstitue_clārās_numerō_nātīvō_sēdecimālī(sit, ((@n64)index)%,); }
+    sīve 1 /* s64 */
+    {
+        sī sēdecimālis
+        { #refer cōnstitue_clārās_numerō_nātīvō_sēdecimālī(sit, ((@n64)index)%,); }
+        sī nōn
+        { #refer cōnstitue_clārās_numerō_signātō(sit, ((@s64)index)%,); }
+    }
+    sīve 2 /* ordo */
+    {
+        @Genus elementi = genus.index_ad_elementum%;
+        n64 el_bytes = elementi.magnitūdō%;
+        
+        []n8 string = situlā_adlocā<n8,>(sit, 1,);
+        string[0]% = '[';
+        dum n64 i = 0; n64 c = genus.numerus_elementōrum%; i < c
+        {
+            sī i != 0
+            {
+                adfirmā(string.i + string.m == situlā_adlocā<n8,>(sit, 2,).i,);
+                string.m += 2;
+                string[string.m - 2]% = ',';
+                string[string.m - 1]% = ' ';
+            }
+            
+            []n8 temp_string = cōnstitue_clārās_indice_genereque(sit, index + i * el_bytes, elementi, sēdecimālis,);
+            
+            adfirmā(string.i + string.m == situlā_adlocā<n8,>(sit, temp_string.m,).i,);
+            n64 insert_at = string.m;
+            string.m += temp_string.m;
+            
+            dum n64 i = 0; i < temp_string.m
+            {
+                string[insert_at + i]% = temp_string[i]%;
+                i += 1;
+            }
+            i += 1;
+        }
+        adfirmā(string.i + string.m == situlā_adlocā<n8,>(sit, 1,).i,);
+        string.m += 1;
+        string[string.m - 1]% = ']';
+        #refer string;
+    }
+    sīve 3 /* spatium */
+    {
+    
+        []n8 str0 = "spatium { ";
+        []n8 str1 = cōnstitue_clārās_numerō_nātīvō_sēdecimālī(sit, ((@n64)index + 0)%,);
+        []n8 str2 = ", ";
+        []n8 str3 = cōnstitue_clārās_numerō_nātīvō(sit, ((@n64)index + 8)%,);
+        []n8 str4 = " }";
+        
+        n64 j = 0;
+        []n8 buf = situlā_adlocā<n8,>(sit, str0.m + str1.m + str2.m + str3.m + str4.m,);
+        
+        dum n64 i = 0; i < str0.m { buf[j]% = str0[i]%; j += 1; i += 1; }
+        dum n64 i = 0; i < str1.m { buf[j]% = str1[i]%; j += 1; i += 1; }
+        dum n64 i = 0; i < str2.m { buf[j]% = str2[i]%; j += 1; i += 1; }
+        dum n64 i = 0; i < str3.m { buf[j]% = str3[i]%; j += 1; i += 1; }
+        dum n64 i = 0; i < str4.m { buf[j]% = str4[i]%; j += 1; i += 1; }
+        #refer buf;
+    }
+    sīve 9 /* structūra */
+    {
+        @GenusStrūctūrae struct = (@GenusStrūctūrae) genus;
+        
+        []n8 struct_name = struct.nōmen_strūctūrae%;
+        []n8 string = situlā_adlocā<n8,>(sit, struct_name.m + 3,);
+        dum n64 i = 0; i < struct_name.m { string[i]% = struct_name[i]%; i += 1; }
+        string[struct_name.m + 0]% = ' ';
+        string[struct_name.m + 1]% = '{';
+        string[struct_name.m + 2]% = ' ';
+        dum n64 i = 0; n64 c = struct.basis.numerus_elementōrum%; i < c
+        {
+            sī i != 0
+            {
+                adfirmā(string.i + string.m == situlā_adlocā<n8,>(sit, 2,).i,);
+                string.m += 2;
+                string[string.m - 2]% = ',';
+                string[string.m - 1]% = ' ';
+            }
+            []n8 member_name = struct.nōmina_membrōrum%[i]%;
+            adfirmā(string.i + string.m == situlā_adlocā<n8,>(sit, member_name.m + 2,).i,);
+            n64 insert_at = string.m;
+            string.m += member_name.m + 2;
+            
+            dum n64 i = 0; i < member_name.m
+            {
+                string[insert_at + i]% = member_name[i]%;
+                i += 1;
+            }
+            string[string.m - 2]% = ':';
+            string[string.m - 1]% = ' ';
+            
+            []n8 temp_string =  cōnstitue_clārās_indice_genereque(
+                                    sit,
+                                    index + struct.locī_membrōrum%[i]%,
+                                    struct.genera_membrōrum%[i]%,
+                                    sēdecimālis,
+                                );
+            
+            adfirmā(string.i + string.m == situlā_adlocā<n8,>(sit, temp_string.m,).i,);
+            n64 insert_at = string.m;
+            string.m += temp_string.m;
+            
+            dum n64 i = 0; i < temp_string.m
+            {
+                string[insert_at + i]% = temp_string[i]%;
+                i += 1;
+            }
+            i += 1;
+        }
+        adfirmā(string.i + string.m == situlā_adlocā<n8,>(sit, 2,).i,);
+        string.m += 2;
+        string[string.m - 2]% = ' ';
+        string[string.m - 1]% = '}';
+        #refer string;
+    }
+    }
+}
+
+peregrīna prōcēdūra ball_park_string_edit_distance([]n8 s1, []n8 s2,) -> n64
+{
+    dum s1.m && s2.m && s1[0]% == s2[0]%
+    { s1 = s1[1..]; s2 = s2[1..]; }
+    
+    dum s1.m && s2.m && s1[s1.m - 1]% == s2[s2.m - 1]%
+    { s1 = s1[0..s1.m - 1]; s2 = s2[0..s2.m - 1]; }
+    
+    sī s1.m > 3
+    {
+        sī s1.m > s2.m
+        { #refer s1.m; }
+        #refer s2.m;
+    }
+    
+    #refer string_edit_distance(s1, s2,);
+}
+
+peregrīna prōcēdūra string_edit_distance([]n8 s1, []n8 s2,) -> n64
+{
+    sī s1.m == 0
+    { #refer s2.m; }
+    sī s2.m == 0
+    { #refer s1.m; }
+    
+    sī s1[s1.m - 1]% == s2[s2.m - 1]%
+    { #refer string_edit_distance(s1[0..s1.m - 1], s2[0..s2.m - 1],); }
+    
+    n64 a = string_edit_distance(s1, s2[0..s2.m - 1],);
+    n64 b = string_edit_distance(s1[0..s1.m - 1], s2,);
+    n64 c = string_edit_distance(s1[0..s1.m - 1], s2[0..s2.m - 1],);
+    
+    sī a < b && a < c
+    { #refer a + 1; }
+    sī b < c
+    { #refer b + 1; }
+    #refer c + 1;
+}

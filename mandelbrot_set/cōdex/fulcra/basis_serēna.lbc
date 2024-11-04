@@ -1,0 +1,520 @@
+
+#particulam inveni "prōcēdūrae_imperātōris.lbc"
+#particulam inveni "regestiō.lbc"
+
+variābile SitulaSpatiī global_address_space_situla;
+
+peregrīna prōcēdūra get_global_address_space_situla() -> @SitulaSpatiī
+{ #refer global_address_space_situla; }
+
+prōcēdūra reset_global_address_space_situla(n64 byte_size,)
+{
+    global_address_space_situla.spatium.i% = _initium_dēsertae;
+    global_address_space_situla.spatium.m% = byte_size;
+    global_address_space_situla.altitūdo% = 0;
+}
+
+peregrīna strūctūra SitulaMemoriaeAucta
+{
+    SitulaMemoriae basis;
+    @n8 space_begin;
+    n64 pages_per_chunk;
+    n64 max_chunk_count;
+    n64 chunks_mapped;
+    n64 altitūdō;
+}
+
+peregrīna prōcēdūra create_growing_arena(n64 pages_per_chunk, n64 chunk_count,) -> @SitulaMemoriae
+{
+    adfirmā(pages_per_chunk,);
+    adfirmā(chunk_count,);
+    []n8 space = situla_reserve_aligned(
+        global_address_space_situla,
+        pages_per_chunk*chunk_count*4096,
+        4096,
+    );
+
+    {
+        n64 allocation; n64 success;
+        (allocation, success,) = imp_adlocātionem_prōcessūs_crea(pages_per_chunk,);
+        adfirmā(success,);
+        adfirmā(imp_adlocātionem_in_spatio_insere(allocation, space.i,),);
+    }
+    n64 chunks_mapped = 1;
+    
+    @SitulaMemoriaeAucta arena = (@SitulaMemoriaeAucta) space.i;
+    arena.space_begin% = space.i;
+    arena.pages_per_chunk% = pages_per_chunk;
+    arena.max_chunk_count% = chunk_count;
+    arena.chunks_mapped% = chunks_mapped;
+    arena.altitūdō% = quot_octētī(SitulaMemoriaeAucta);
+
+    arena.basis.try_alloc%               = growing_arena_try_alloc;
+    arena.basis.save_height%             = growing_arena_save_height;
+    arena.basis.restore_height%          = growing_arena_restore_height;
+    arena.basis.restore_height_and_free% = growing_arena_restore_height;
+
+    #refer arena.basis;
+}
+
+prōcēdūra growing_arena_try_alloc(
+    @SitulaMemoriae situla,
+    n64 num_bytes,
+    n64 step,
+) -> @n8
+{
+    @SitulaMemoriaeAucta arena = (@SitulaMemoriaeAucta) situla;
+    n64 align_left = (step - arena.altitūdō% ? step) ? step;
+
+    n64 chunks_required = num_bytes + align_left + arena.altitūdō%;
+    chunks_required = (chunks_required + arena.pages_per_chunk% * 4096 - 1) / (arena.pages_per_chunk% * 4096);
+
+    sī chunks_required > arena.max_chunk_count%
+    { #refer 0; }
+    dum arena.chunks_mapped% < chunks_required
+    {
+        n64 allocation; n64 success;
+        (allocation, success,) = imp_adlocātionem_prōcessūs_crea(arena.pages_per_chunk%,);
+        adfirmā(success,);
+        adfirmā(imp_adlocātionem_in_spatio_insere(
+            allocation,
+            arena.space_begin% + (@n8)(arena.chunks_mapped% * arena.pages_per_chunk% * 4096),
+        ),);
+        arena.chunks_mapped% += 1;
+    }
+
+    @n8 index = arena.space_begin% + (@n8)(align_left + arena.altitūdō%);
+    arena.altitūdō% += num_bytes + align_left;
+    #refer index;
+}
+
+prōcēdūra growing_arena_save_height(@SitulaMemoriae situla,) -> n64
+{ #refer ((@SitulaMemoriaeAucta)situla).altitūdō%; }
+
+prōcēdūra growing_arena_restore_height(@SitulaMemoriae situla, n64 to_height,)
+{
+    @SitulaMemoriaeAucta arena = (@SitulaMemoriaeAucta) situla;
+    sī arena.altitūdō% < to_height { abort(); }
+    sī to_height < quot_octētī(SitulaMemoriaeAucta) { abort(); }
+    arena.altitūdō% = to_height;
+}
+
+
+/*
+    0 - default
+    1 - faded
+    2 - good
+    3 - bad
+*/
+peregrīna prōcēdūra color_chars_to_be_printed(n8 color,)
+{ notās_pressūrās_colōra(color,); }
+
+peregrīna prōcēdūra notās_pressūrās_colōra(n8 color,)
+{
+    []n8 buf = campō_adlocā<n8,>(1,);
+    buf[0]% = '\n' + 1 + (color ? 4);
+
+    dum imp_in_fluctum_octētos_preme(buf,) == 0
+    {}
+}
+
+peregrīna prōcēdūra preme_notās([]n8 notās,)
+{
+    dum notās.m
+    {
+        n64 put = imp_in_fluctum_octētos_preme(notās,);
+        notās = notās[put..];
+        sī put == 0 { imp_yeild(); }
+    }
+}
+
+peregrīna prōcēdūra abort()
+{
+    circum.prōcēdūra_regere_notās_clārās% = preme_notās;
+    notās_pressūrās_colōra(3,);
+    regere("Dīruō. / I am aborting.\n",);
+    notās_pressūrās_colōra(0,);
+    regere_vestīgium_scālae_aliud(vestīgium_scālae,);
+    imp_thread_exit(3,);
+}
+peregrīna prōcēdūra abort_due_to_assertion_failure([]n8 assertion,)
+{
+    circum.prōcēdūra_regere_notās_clārās% = preme_notās;
+    notās_pressūrās_colōra(3,);
+    regere("Dēfēcit adfirmātiō '{c}'. Anglicē, the assertion failed.\n", assertion,);
+    notās_pressūrās_colōra(0,);
+    regere_vestīgium_scālae_aliud(vestīgium_scālae,);
+    imp_thread_exit(3,);
+}
+peregrīna prōcēdūra abort_out_of_bounds_exclusive(n64 index, n64 bound,)
+{
+    circum.prōcēdūra_regere_notās_clārās% = preme_notās;
+    notās_pressūrās_colōra(3,);
+    regere("Errās! Index nōn intrā terminum. / You err! Index not within bound.\n Index: {}\n Terminus / Bound: {}\n", index, bound,);
+    notās_pressūrās_colōra(0,);
+    regere_vestīgium_scālae_aliud(vestīgium_scālae,);
+    imp_thread_exit(3,);
+}
+peregrīna prōcēdūra abort_out_of_bounds_inclusive(n64 index, n64 bound,)
+{
+    circum.prōcēdūra_regere_notās_clārās% = preme_notās;
+    notās_pressūrās_colōra(3,);
+    regere("Errās! Index extrā terminum. / You err! Index outside bound.\n Index: {}\n Terminus / Bound: {}\n", index, bound,);
+    notās_pressūrās_colōra(0,);
+    regere_vestīgium_scālae_aliud(vestīgium_scālae,);
+    imp_thread_exit(3,);
+}
+
+peregrīna prōcēdūra noob_main();
+
+variābile [1024]n8 _init_stack;
+prōcēdūra compīlāta _principium_jussuum()
+"
+    la sp, _init_stack
+    li a0, 1024
+    add sp, sp, a0
+
+    call _setup_stack
+    mv sp, a0
+
+    mv gp, x0 # stack trace
+    call main
+"
+
+prōcēdūra _setup_stack() -> n64
+{
+    reset_global_address_space_situla(0x107374182400,); /* 100 Gibibytes */
+
+    n64 stack_pages = 256;
+    []n8 space = situla_reserve_aligned(
+        global_address_space_situla,
+        (stack_pages+2)*4096,
+        4096,
+    );
+
+    n64 allocation; n64 success;
+    (allocation, success,) = imp_adlocātionem_prōcessūs_crea(stack_pages,);
+    adfirmā(success,);
+    adfirmā(imp_adlocātionem_in_spatio_insere(
+        allocation,
+        space.i + 4096,
+    ),);
+    #refer (n64)space.i + (stack_pages+1)*4096;
+}
+
+prōcēdūra main()
+{
+    /* Setup automatically growing scratch arenas, each one up to 1 GiB.
+       262144 pages, allocated in 64 pages chunks. This means that every 256 KiB
+       is a seperate physical memory chunk. */
+    
+    circum = campō_adlocā<Circumstantia,>(1,).i;
+    circum.situla_campō_0% = create_growing_arena(64, 4096,);
+    circum.situla_campō_1% = create_growing_arena(64, 4096,);
+    circum.situla_data% = circum.situla_campō_0%;
+    
+    circum.prōcēdūra_dīrue% = abort;
+    circum.prōcēdūra_dīrue_adfirmātiōne_dēfectā% = abort_due_to_assertion_failure;
+    circum.prōcēdūra_dīrue_terminō% = abort_out_of_bounds_exclusive;
+    circum.prōcēdūra_dīrue_terminō_exteriōre% = abort_out_of_bounds_inclusive;
+    
+    circum.prōcēdūra_regere_notās_clārās% = preme_notās;
+
+    noob_main();
+    imp_thread_exit(1,);
+}
+
+peregrīna prōcēdūra get_micros() -> n64
+{
+    #refer rdtime() / 24;
+}
+
+prōcēdūra compīlāta rdtime() -> n64
+"
+    rdtime a0
+    ret
+"
+
+peregrīna prōcēdūra get_program_arguments() -> []KArgument
+{
+    []KArgument args = imp_get_args(campō_adlocā<KArgument,>(64,),);
+    
+    []KArgument dest = situlā_adlocā<KArgument,>(circum.situla_data%, args.m,);
+    dum n64 i = 0; i < args.m
+    {
+        dest[i]% = args[i]%;
+        i += 1;
+    }
+    #refer dest;
+}
+
+peregrīna prōcēdūra read_entire_file(n64 file_handle,) -> []n8
+{
+    n64 file_byte_size = imp_scāpi_quot_octēti(file_handle,);
+    n64 block_count = (file_byte_size + 4096 - 1) / 4096;
+
+    []n8 space = situlā_adlocā_gradū<n8,>(circum.situla_data%, block_count*4096, 4096,);
+
+    dum n64 start_block = 0; n64 blocks_left = block_count; blocks_left
+    {
+        [][2]n64 block_address_pairs = campō_adlocā<[2]n64,>(512,);
+
+        sī blocks_left < block_address_pairs.m
+        { block_address_pairs.m = blocks_left; }
+        blocks_left -= block_address_pairs.m;
+
+        dum n64 i = 0; i < block_address_pairs.m
+        {
+            block_address_pairs[i][0]% = (start_block + i);
+            block_address_pairs[i][1]% = space.i + (start_block + i) * 4096;
+            i += 1;
+        }
+        start_block += block_address_pairs.m;
+
+        n64 op = imp_scāpi_tesseras_perspice(file_handle, block_address_pairs,);
+        dum 1 {
+            n64 blocks_left; n64 blocks_failed;
+            (blocks_left, blocks_failed,) = imp_scāpi_operātionis_tesserae_manentēs_frāctaeque(op,);
+            adfirmā(blocks_failed == 0,);
+            sī blocks_left == 0
+            { #dēsine; }
+            imp_yeild();
+        }
+    }
+
+    #refer space[0..file_byte_size];
+}
+
+prōcēdūra c_mem_copy(@n8 from, @n8 to, n64 count,)
+{
+    dum count >= 8
+    {
+        ((@n64)to)% = ((@n64)from)%;
+        from += 8;
+        to += 8;
+        count -= 8;
+    }
+    dum count
+    {
+        to% = from%;
+        from += 1;
+        to += 1;
+        count -= 1;
+    }
+}
+
+peregrīna prōcēdūra write_entire_file(n64 file_handle, []n8 contents,)
+{
+    #situla trānsitōria: temp_sit;
+    
+    sī contents.i ? 4096 != 0
+    {
+        []n8 new_contents = situlā_adlocā_gradū<n8,>(temp_sit, contents.m, 4096,);
+        c_mem_copy(contents.i, new_contents.i, contents.m,);
+        contents = new_contents;
+    }
+    
+    n64 file_byte_size = contents.m;
+    adfirmā(imp_scāpi_numerus_octētōrum_dicta(file_handle, file_byte_size,),);
+    n64 block_count = (file_byte_size + 4096 - 1) / 4096;
+    sī block_count == 0
+    { #refer; }
+
+    dum n64 start_block = 0; n64 blocks_left = block_count; blocks_left
+    {
+        [][2]n64 block_address_pairs = campō_adlocā<[2]n64,>(512,);
+
+        sī blocks_left < block_address_pairs.m
+        { block_address_pairs.m = blocks_left; }
+        blocks_left -= block_address_pairs.m;
+
+        dum n64 i = 0; i < block_address_pairs.m
+        {
+            n64 b = start_block + i;
+            []n8 m = contents[b * 4096..];
+            
+            sī m.m < 4096
+            {
+                /*  This is required not to leak any memory to the file beyond
+                    the byte size end marker. */
+                []n8 nm = situlā_adlocā_gradū<n8,>(temp_sit, 4096, 4096,);
+                c_mem_copy(m.i, nm.i, m.m,);
+                dum n64 i = m.m; i < 4096
+                {
+                    nm[i]% = 0;
+                    i += 1;
+                }
+                m = nm;
+            }
+            
+            block_address_pairs[i][0]% = b;
+            block_address_pairs[i][1]% = m.i;
+            i += 1;
+        }
+        start_block += block_address_pairs.m;
+
+        n64 op = imp_scāpi_tesseras_inscrībe(file_handle, block_address_pairs,);
+        dum 1 {
+            n64 blocks_left; n64 blocks_failed;
+            (blocks_left, blocks_failed,) = imp_scāpi_operātionis_tesserae_manentēs_frāctaeque(op,);
+            adfirmā(blocks_failed == 0,);
+            sī blocks_left == 0
+            { #dēsine; }
+            imp_yeild();
+        }
+    }
+}
+
+
+/*
+    noob_graphics_setup(1,);
+    
+    NoobFrame frame = noob_start_frame();
+    // draw
+    noob_end_frame();
+*/
+
+variābile @ImpDisplayBuffer basis_fb;
+
+peregrīna prōcēdūra noob_graphics_setup(n64 mode,)
+{
+    n64 alien_handle;
+    alien_handle = imp_find_piip("serēnum_tui_api_v1",);
+
+    sī alien_handle != (n64)-1
+    {
+        regere("Using 'serēnum_tui_api_v1'.\n",);
+        adfirmā(basis_tui_request_user_port(alien_handle,),);
+    }
+    sī nōn
+    {
+        regere("Api 'serēnum_tui_api_v1' was not found. Attempting to run as PID 0.\n",);
+    }
+    @ImpDisplayBuffer imp_fb =
+        (@ImpDisplayBuffer)situla_reserve_aligned(global_address_space_situla, (1519*2 + 1)*4096, 4096,).i;
+    n64 imp_fb_alloc; n64 success;
+    (imp_fb_alloc, success,) = imp_try_get_display_buffer();
+    adfirmā(success /* Failed to get user port. */,);
+    adfirmā(imp_adlocātionem_in_spatio_insere(imp_fb_alloc, imp_fb,),);
+    
+    
+    imp_fb.target_mode% = mode;
+    dum imp_fb.active_mode% != mode
+    { imp_yeild(); }
+    
+    basis_fb% = imp_fb;
+}
+
+/* success */
+prōcēdūra compīlāta basis_tui_request_user_port(n64 alien_handle,) -> n64
+"
+    li a1, 3
+    la t0, imp_invoke_piip
+    jalr x0, (t0)
+"
+
+peregrīna strūctūra NoobFrame
+{
+    @n32 pixels;
+    n64 width;
+    n64 height;
+}
+
+peregrīna prōcēdūra noob_frame_ready() -> n64
+{
+    adfirmā(basis_fb%,);
+    #refer basis_fb%.frame_index% & 1 == 0;
+}
+
+peregrīna prōcēdūra noob_start_frame() -> NoobFrame
+{
+    adfirmā(basis_fb%,);
+    
+    dum basis_fb%.frame_index% & 1 == 1
+    { imp_yeild(); }
+    
+    NoobFrame f;
+    
+    f.width = basis_fb%.width%;
+    f.height = basis_fb%.height%;
+
+    sī basis_fb%.frame_index% & 0x2
+    { f.pixels = (@n32) basis_fb%.fb1%; }
+    sī nōn
+    { f.pixels = (@n32) basis_fb%.fb0%; }
+    #refer f;
+}
+
+
+peregrīna prōcēdūra noob_end_frame()
+{
+    adfirmā(basis_fb%,);
+    basis_fb%.frame_index% |= 1;
+}
+
+peregrīna prōcēdūra noob_rectangle(NoobFrame frame, s64 x, s64 y, s64 width, s64 height, n32 color,)
+{
+    sī x >= (s64)frame.width || y >= (s64)frame.height || width <= 0 || height <= 0
+    { #refer; }
+    
+    sī x < 0
+    { width += x; x = 0; }
+    sī y < 0
+    { height += y; y = 0; }
+    
+    sī x + width > (s64)frame.width
+    { width = (s64)frame.width - x; }
+    sī y + height > (s64)frame.height
+    { height = (s64)frame.height - y; }
+    
+    noob_draw_rect_asm(
+        frame.pixels + (@n32)(y * (s64)frame.width + x) << 2, 
+        frame.width*4,
+        (n64)width,
+        (n64)height,
+        color,
+    );
+}
+
+prōcēdūra compīlāta noob_draw_rect_asm(@n32 base, n64 stride, n64 width, n64 height, n32 color,)
+"    
+    vsetvli s4, a2, e32, m8
+    vmv.v.x v8, a4
+    
+    li a7, 0 # y
+ug_draw_rect_asm_y_loop:
+    mv s2, a0 # pointer
+    mv s3, a2 # counter
+
+ug_draw_rect_asm_x_loop:
+    vsetvli s4, s3, e32, m8
+    vse.v v8, (s2)
+    sub s3, s3, s4
+    slli s4, s4, 2
+    add s2, s2, s4
+    
+    bnez s3, ug_draw_rect_asm_x_loop
+    
+    add a0, a0, a1
+    addi a7, a7, 1
+    bne a7, a3, ug_draw_rect_asm_y_loop
+    ret
+"
+
+// Because of goofyness with re-export we need to mirror this structure.
+peregrīna strūctūra NoobKeyEvent
+{
+    n8 clāvis;
+    n8 premitur;
+    [26]n8 status_clāvium;
+}
+
+variābile [1]ImperātorisĒventūsClāviatūrae noob_key_slot;
+peregrīna prōcēdūra noob_next_key_event() -> @NoobKeyEvent
+{
+    []ImperātorisĒventūsClāviatūrae got = imp_clāviatūrae_ēventūs_obtine(noob_key_slot[0..1],);
+    sī got.m
+    { #refer (@NoobKeyEvent)got.i; }
+    #refer 0;
+}
+

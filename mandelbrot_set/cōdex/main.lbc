@@ -1,0 +1,127 @@
+#particulam inveni "fulcra/basis_serēna.lbc"
+#particulam inveni "fulcra/prōcēdūrae_imperātōris.lbc"
+#particulam inveni "fulcra/regestiō.lbc"
+#particulam inveni "fulcra/noob_window.lbc"
+
+// using fixed point numbers with 10 binary digits after dot
+prōcēdūra get_number_of_iterations(s64 x, s64 y,) -> n8 {
+    s64 pos_x = 0; s64 pos_y = 0;
+    n8 i = 0;
+    dum i < 15 {
+        #prōlātā { i += 1; }
+        s64 new_pos_x = (pos_x * pos_x - pos_y * pos_y) >> 10;
+        s64 new_pos_y = (pos_x * pos_y) >> 9;
+        pos_x = new_pos_x + x;
+        pos_y = new_pos_y + y;
+        sī pos_x*pos_x + pos_y*pos_y > 1 << 22 {
+            #refer i;
+        }
+    }
+    #refer i;
+}
+
+
+prōcēdūra generate_mandelbrot_set(
+    n64 width,
+    n64 height, 
+    s64 fixed_left, 
+    s64 fixed_top,
+    n64 fixed_height, 
+    n64 fixed_width,
+) -> []n8 {
+    []n8 image = situlā_adlocā<n8,>(circum.situla_data%, width*height,);
+     
+    s64 step_x = (s64)(fixed_width  / width);
+    s64 step_y = (s64)(fixed_height / height);     
+    dum n64 y = 0; s64 coord_y = fixed_top; y < height {
+        #prōlātā { y += 1; coord_y += step_y; } 
+
+        dum n64 x = 0; s64 coord_x = fixed_left; x < width {
+            #prōlātā { x += 1; coord_x += step_x; } 
+            n8 pixel = get_number_of_iterations(
+                coord_x,
+                coord_y,
+            );
+            image[y*width+x]% = pixel;
+        }
+
+    }
+    #refer image;
+}
+
+peregrīna prōcēdūra noob_main() {
+    n64 size_of_mandelbrot = 256;
+
+    n64 start_time = get_micros();
+
+    []n8 image = generate_mandelbrot_set(
+        size_of_mandelbrot,
+        size_of_mandelbrot, 
+        -2 << 10, 
+        -2 << 10,
+        4 << 10, 
+        4 << 10,
+    );
+
+    n64 end_time = get_micros();  
+    regere("mandelbrot generation done in ",);
+    regere_time(end_time-start_time,);
+    regere("\n",);
+    
+    noob_window_setup();
+
+    dum 1 {
+        // TODO: figure out user input
+        NoobFrame frame; @[4]n64 _dirty_bits; 
+        (frame,_dirty_bits,) = noob_window_start_frame();
+
+        n64 width; n64 height;
+        (width, height,) = noob_window_get_size();
+
+        regere("{}x{}\n", width, height,);
+        regere("frame {}x{}\n", frame.width, frame.height,);
+
+        dum n64 y = 0; y < height {
+            dum n64 x = 0; x < width {
+                (frame.pixels + (@n32)(y*frame.width+x)<<2)% = (n32)image[y ? size_of_mandelbrot * size_of_mandelbrot + x ? size_of_mandelbrot]% * 17;
+                x += 1;
+            }
+            y += 1;
+        }
+
+        noob_window_end_frame();
+    }    
+}
+
+// prints time in format "XhXmXsXms"
+prōcēdūra regere_time(n64 time_in_micros,) {
+    n64 micros = time_in_micros  ? 1000;
+    time_in_micros /= 1000;
+    n64 millis = time_in_micros  ? 1000;
+    time_in_micros /= 1000;
+    n64 seconds = time_in_micros ? 1000;
+    time_in_micros /= 1000;
+    n64 minutes = time_in_micros ? 60;
+    time_in_micros /= 60;
+    n64 hours = time_in_micros   ? 60;
+    time_in_micros /= 60;
+    
+    n64 started = 0;
+    sī hours || started {
+        regere("{}h", hours,);
+        started = 1;
+    }
+    sī minutes || started {
+        regere("{}m", minutes,);
+        started = 1;
+    }
+    sī seconds || started {
+        regere("{}s", seconds,);
+        started = 1;    
+    }
+    sī millis || started {
+        regere("{}ms", millis,);
+    }
+    regere("{}us", micros,);
+}
+
